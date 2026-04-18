@@ -1,260 +1,300 @@
 type Feature = {
   title: string;
   copy: string;
-  eyebrow: string;
+  icon: string;
 };
 
-type Testimonial = {
-  quote: string;
-  name: string;
-  role: string;
+type StoryCard = {
+  title: string;
+  copy: string;
 };
 
 const features: Feature[] = [
   {
-    eyebrow: "Trust Layer",
+    icon: "✓",
     title: "Verified Profiles",
-    copy: "See who is real before you start a conversation. Built for confidence, not guesswork."
+    copy: "Talk to real people with stronger trust signals before you invest time or money."
   },
   {
-    eyebrow: "Fit Layer",
+    icon: "◎",
     title: "Smart Matching",
-    copy: "Lifestyle signals like routines, cleanliness, and social energy help you avoid bad fit decisions."
+    copy: "Find people who fit your routines, habits, and house expectations, not just your budget."
   },
   {
-    eyebrow: "Money Layer",
+    icon: "₹",
     title: "Secure Payments",
-    copy: "Future-ready flows bring more clarity to deposits, rent, and shared money moments."
+    copy: "Future-ready money flows help deposits and shared costs feel more visible and less awkward."
   },
   {
-    eyebrow: "Ops Layer",
+    icon: "⌂",
     title: "Easy Living Management",
-    copy: "Move in with less chaos and keep the household coordinated after the decision is made."
+    copy: "Move in with less confusion and keep the home coordinated once the decision is made."
+  }
+];
+
+const painPoints: StoryCard[] = [
+  {
+    title: "Listings are scattered everywhere",
+    copy: "You jump between group chats, brokers, stories, and outdated apps just to see what is actually available."
+  },
+  {
+    title: "Trust is too thin",
+    copy: "You are asked to make a life-impacting decision without enough confidence in who you are talking to."
+  },
+  {
+    title: "Urgency ruins good decisions",
+    copy: "When someone leaves a flat, speed takes over and compatibility becomes an afterthought."
+  },
+  {
+    title: "Money creates stress fast",
+    copy: "Deposits, rent timing, and shared expenses turn simple coordination into uncomfortable friction."
   }
 ];
 
 const steps = [
   "Create your profile",
-  "Explore listings",
-  "Connect with people",
-  "Secure your spot",
-  "Move in"
+  "Browse matching homes",
+  "Compare trust + fit",
+  "Connect instantly",
+  "Move in smoothly"
 ];
 
-const testimonials: Testimonial[] = [
+const cities = [
   {
-    quote:
-      "It finally feels like someone designed a flatmate platform for how shared living actually works in Indian cities.",
-    name: "Rhea Sharma",
-    role: "Product Designer, Bengaluru"
+    name: "Delhi NCR",
+    stat: "Fast replacement demand",
+    copy: "Ideal for high-churn neighborhoods where people need trusted options quickly."
   },
   {
-    quote:
-      "The trust and compatibility angle is what makes this different. I would have used this immediately during my last move.",
-    name: "Kabir Mehta",
-    role: "Consultant, Delhi NCR"
-  }
-];
-
-const problemPillars = [
-  {
-    title: "Scattered listings",
-    copy: "WhatsApp groups, broker calls, random posts, and stale apps make discovery feel like a scavenger hunt."
-  },
-  {
-    title: "Trust issues",
-    copy: "You are expected to decide quickly with incomplete information and no real confidence in who you are talking to."
-  },
-  {
-    title: "Last-minute compromises",
-    copy: "When a flatmate leaves, urgency takes over and better choices get replaced by rushed ones."
-  },
-  {
-    title: "Money stress",
-    copy: "Deposits, rent timing, and shared expenses often turn the move-in into the most awkward part."
+    name: "Bengaluru",
+    stat: "Strong shared-living density",
+    copy: "Built for students and professionals navigating constant move-ins and flatmate changes."
   }
 ];
 
 function App() {
   return (
-    <div className="page-shell">
-      <div className="ambient ambient-one" />
-      <div className="ambient ambient-two" />
-
-      <header className="topbar">
-        <a className="brand" href="#hero" aria-label="Shared Living OS home">
-          <span className="brand-mark">S</span>
-          <span className="brand-copy">
+    <div className="app-shell">
+      <header className="site-header">
+        <a className="brand" href="#hero" aria-label="Shared Living OS homepage">
+          <span className="brand-badge">S</span>
+          <span className="brand-text">
             <strong>Shared Living OS</strong>
-            <small>Trust-first shared living</small>
+            <small>Find your people, faster</small>
           </span>
         </a>
 
-        <nav className="topnav" aria-label="Primary">
-          <a href="#problem">Why it matters</a>
-          <a href="#solution">How it works</a>
-          <a href="#cities">Cities</a>
-          <a href="#cta">Get started</a>
+        <nav className="desktop-nav" aria-label="Primary">
+          <a href="#problem">Problem</a>
+          <a href="#solution">Solution</a>
+          <a href="#features">Features</a>
+          <a href="#cta">Get Started</a>
         </nav>
 
-        <a className="button button-ghost nav-cta" href="#cta">
-          Explore now
-        </a>
+        <div className="header-actions">
+          <a className="button button-secondary" href="#cta">
+            List Your Room
+          </a>
+          <a className="button button-primary desktop-primary" href="#cta">
+            Find Flatmates
+          </a>
+        </div>
       </header>
 
       <main>
-        <section className="hero section" id="hero">
-          <div className="hero-copy reveal">
-            <p className="eyebrow">Shared living, without the chaos</p>
+        <section className="hero-section" id="hero">
+          <div className="hero-copy">
+            <div className="eyebrow-row">
+              <span className="eyebrow-badge">Verified shared-living platform</span>
+              <span className="eyebrow-note">Delhi NCR + Bengaluru</span>
+            </div>
+
             <h1>Find the right flatmates. Not just any flat.</h1>
-            <p className="hero-text">
+            <p className="hero-subcopy">
               Verified people. Better matches. No chaos during move-ins. Shared
-              Living OS turns a stressful housing decision into a clear, trusted
-              path forward.
+              Living OS is designed to make shared living feel like a smart
+              decision, not a rushed compromise.
             </p>
 
-            <div className="hero-actions">
+            <div className="hero-buttons">
               <a className="button button-primary" href="#cta">
                 Find Flatmates
               </a>
-              <a className="button button-secondary" href="#cta">
-                List Your Room
+              <a className="button button-tertiary" href="#solution">
+                See how it works
               </a>
             </div>
 
-            <div className="hero-trustbar">
-              <div>
+            <div className="hero-stats">
+              <article>
                 <strong>500+</strong>
-                <span>early users already exploring the idea</span>
-              </div>
-              <div>
-                <strong>Delhi NCR + Bengaluru</strong>
-                <span>city-first launch focus</span>
-              </div>
+                <span>users exploring smarter shared living</span>
+              </article>
+              <article>
+                <strong>92% fit</strong>
+                <span>sample compatibility snapshot</span>
+              </article>
+              <article>
+                <strong>No broker chaos</strong>
+                <span>clearer decisions from day one</span>
+              </article>
             </div>
           </div>
 
-          <div className="hero-visual reveal">
-            <div className="hero-card skyline-card">
-              <div className="mini-badge">Verified move-in journey</div>
-              <div className="city-lights">
-                <span />
-                <span />
-                <span />
-                <span />
+          <div className="hero-product">
+            <div className="product-card phone-shell">
+              <div className="phone-top">
+                <span className="phone-pill">Best match today</span>
+                <span className="phone-time">8 min ago</span>
               </div>
-              <div className="visual-grid">
-                <article className="visual-panel warm-panel">
-                  <p className="panel-kicker">Best match</p>
-                  <h2>92% fit</h2>
-                  <p>
-                    Similar schedules, clean-home habits, and compatible social
-                    energy.
-                  </p>
-                </article>
-                <article className="visual-panel outline-panel">
-                  <p className="panel-kicker">Trust signal</p>
-                  <ul>
-                    <li>Government ID verified</li>
-                    <li>Work profile confirmed</li>
-                    <li>Deposit flow visibility</li>
-                  </ul>
-                </article>
+
+              <div className="listing-card">
+                <div className="listing-image">
+                  <div className="listing-chip">Verified household</div>
+                  <div className="listing-chip alt-chip">Immediate move-in</div>
+                </div>
+
+                <div className="listing-details">
+                  <div>
+                    <h2>Koramangala 3BHK</h2>
+                    <p>2 working professionals · Fully furnished · ₹17k/month</p>
+                  </div>
+
+                  <div className="match-meter">
+                    <div className="meter-head">
+                      <strong>92% compatibility</strong>
+                      <span>Excellent fit</span>
+                    </div>
+                    <div className="meter-bar">
+                      <span />
+                    </div>
+                  </div>
+
+                  <div className="signal-grid">
+                    <div>
+                      <strong>Trust</strong>
+                      <span>ID + work verified</span>
+                    </div>
+                    <div>
+                      <strong>Lifestyle</strong>
+                      <span>Clean home, early sleepers</span>
+                    </div>
+                    <div>
+                      <strong>Money</strong>
+                      <span>Deposit visibility</span>
+                    </div>
+                    <div>
+                      <strong>Decision</strong>
+                      <span>Chat before shortlist</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="ticker">
-                <span>Move-in clarity</span>
-                <span>Real people</span>
-                <span>Less compromise</span>
+
+              <div className="mini-panels">
+                <article>
+                  <strong>3</strong>
+                  <span>good matches nearby</span>
+                </article>
+                <article>
+                  <strong>Verified</strong>
+                  <span>profiles highlighted first</span>
+                </article>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="section section-problem" id="problem">
-          <div className="section-heading reveal">
-            <p className="eyebrow">The problem feels familiar</p>
-            <h2>Looking for a flatmate should not feel like crisis management.</h2>
+        <section className="problem-section section-block" id="problem">
+          <div className="section-intro">
+            <span className="section-tag">The problem</span>
+            <h2>The process is messy long before the move-in happens.</h2>
             <p>
-              Most people are not struggling because they cannot find a room.
-              They are struggling because the whole process is fragmented,
-              urgent, and full of uncertainty.
+              Shared living breaks down because discovery, trust, compatibility,
+              and money are all handled in separate places. People do not need
+              more listings. They need a better system.
             </p>
           </div>
 
-          <div className="problem-grid">
-            {problemPillars.map((pillar, index) => (
-              <article className="problem-card reveal" key={pillar.title}>
-                <span className="problem-icon" aria-hidden="true">
-                  0{index + 1}
-                </span>
-                <h3>{pillar.title}</h3>
-                <p>{pillar.copy}</p>
+          <div className="story-grid">
+            {painPoints.map((item, index) => (
+              <article className="story-card" key={item.title}>
+                <span className="story-index">0{index + 1}</span>
+                <h3>{item.title}</h3>
+                <p>{item.copy}</p>
               </article>
             ))}
           </div>
         </section>
 
-        <section className="section solution-section" id="solution">
-          <div className="solution-copy reveal">
-            <p className="eyebrow">A better operating system for shared living</p>
-            <h2>We bring structure to the moments that usually go wrong.</h2>
+        <section className="solution-section section-block" id="solution">
+          <div className="section-intro compact-intro">
+            <span className="section-tag">The solution</span>
+            <h2>A homepage that immediately explains the product value.</h2>
             <p>
-              Shared Living OS combines trusted discovery, compatibility
-              intelligence, and financial clarity into one calmer experience.
-              That means fewer compromises, faster confidence, and smoother
-              move-ins.
+              Shared Living OS makes the full decision journey feel clear. You
+              can discover homes, compare fit, verify people, and move forward
+              with better confidence.
             </p>
-            <div className="solution-list">
-              <div>
-                <strong>Discovery</strong>
-                <span>Clean listings with real context, not noisy guesswork.</span>
-              </div>
-              <div>
-                <strong>Matching</strong>
-                <span>Compatibility goes beyond budget and location.</span>
-              </div>
-              <div>
-                <strong>Trust</strong>
-                <span>Verified identities help you decide with confidence.</span>
-              </div>
-              <div>
-                <strong>Financial clarity</strong>
-                <span>Future-ready flows reduce awkward money friction.</span>
-              </div>
-            </div>
           </div>
 
-          <div className="solution-visual reveal">
-            <div className="metric-stack">
-              <article className="metric-card">
-                <p>Discovery score</p>
-                <strong>Clearer</strong>
-                <span>Listings with context, intent, and household signals.</span>
+          <div className="solution-layout">
+            <div className="solution-stack">
+              <article className="solution-card">
+                <strong>Discovery</strong>
+                <p>Explore listings with household context instead of fragmented noise.</p>
               </article>
-              <article className="metric-card highlight-card">
-                <p>Decision quality</p>
-                <strong>Higher trust</strong>
-                <span>Fewer rushed tradeoffs when the basics are visible.</span>
+              <article className="solution-card">
+                <strong>Matching</strong>
+                <p>See compatibility built around lifestyle, routine, and expectations.</p>
               </article>
-              <article className="metric-card">
-                <p>Move-in experience</p>
-                <strong>Smoother</strong>
-                <span>Money, people, and timing feel coordinated from day one.</span>
+              <article className="solution-card">
+                <strong>Trust</strong>
+                <p>Verified identities reduce uncertainty before the first serious conversation.</p>
               </article>
+              <article className="solution-card">
+                <strong>Financial clarity</strong>
+                <p>Future-ready flows reduce confusion around deposits and shared money moments.</p>
+              </article>
+            </div>
+
+            <div className="dashboard-card">
+              <div className="dashboard-top">
+                <strong>Why users convert</strong>
+                <span>because the value is obvious fast</span>
+              </div>
+              <div className="dashboard-grid">
+                <article>
+                  <strong>Clear fit</strong>
+                  <p>Compatibility before commitment</p>
+                </article>
+                <article>
+                  <strong>Real trust</strong>
+                  <p>Verified people, visible signals</p>
+                </article>
+                <article>
+                  <strong>Faster choice</strong>
+                  <p>Less panic, better decisions</p>
+                </article>
+                <article>
+                  <strong>Smoother move-in</strong>
+                  <p>Money and logistics feel coordinated</p>
+                </article>
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="section features-section">
-          <div className="section-heading reveal">
-            <p className="eyebrow">Feature highlights</p>
-            <h2>The value should be obvious in seconds.</h2>
+        <section className="features-section section-block" id="features">
+          <div className="section-intro compact-intro">
+            <span className="section-tag">Feature highlights</span>
+            <h2>Everything on the page should answer: why try this now?</h2>
           </div>
 
           <div className="feature-grid">
             {features.map((feature) => (
-              <article className="feature-card reveal" key={feature.title}>
-                <p className="feature-eyebrow">{feature.eyebrow}</p>
+              <article className="feature-card" key={feature.title}>
+                <span className="feature-icon">{feature.icon}</span>
                 <h3>{feature.title}</h3>
                 <p>{feature.copy}</p>
               </article>
@@ -262,81 +302,79 @@ function App() {
           </div>
         </section>
 
-        <section className="section how-section">
-          <div className="section-heading reveal">
-            <p className="eyebrow">How it works</p>
-            <h2>Simple enough to understand fast. Structured enough to trust.</h2>
+        <section className="how-section section-block">
+          <div className="section-intro compact-intro">
+            <span className="section-tag">How it works</span>
+            <h2>Simple enough to understand in one scroll.</h2>
           </div>
 
-          <div className="stepper" aria-label="How it works steps">
+          <div className="steps-row">
             {steps.map((step, index) => (
-              <div className="step-item reveal" key={step}>
-                <span className="step-index">0{index + 1}</span>
+              <article className="step-card" key={step}>
+                <span className="step-number">0{index + 1}</span>
                 <p>{step}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="section social-section">
-          <div className="section-heading reveal">
-            <p className="eyebrow">Social proof</p>
-            <h2>Trust builds faster when people can see momentum.</h2>
-          </div>
-
-          <div className="social-proof-grid">
-            <article className="stat-card reveal">
-              <strong>500+</strong>
-              <span>users already interested in a more trusted shared-living journey</span>
-            </article>
-
-            {testimonials.map((testimonial) => (
-              <article className="testimonial-card reveal" key={testimonial.name}>
-                <p className="quote">“{testimonial.quote}”</p>
-                <div className="testimonial-meta">
-                  <strong>{testimonial.name}</strong>
-                  <span>{testimonial.role}</span>
-                </div>
               </article>
             ))}
           </div>
         </section>
 
-        <section className="section city-section" id="cities">
-          <div className="section-heading reveal">
-            <p className="eyebrow">City focus</p>
-            <h2>Launching where shared living is urgent, fast, and full of friction.</h2>
+        <section className="proof-section section-block">
+          <div className="proof-highlight">
+            <span className="section-tag">Social proof</span>
+            <h2>Built to feel trustworthy before the first click.</h2>
+            <p>
+              A strong homepage should reduce hesitation fast. The trust cues,
+              product framing, and repeated calls to action all push the user
+              from curiosity to action.
+            </p>
           </div>
 
-          <div className="city-grid">
-            <article className="city-card reveal">
-              <p className="city-label">Live now</p>
-              <h3>Delhi NCR</h3>
-              <p>
-                For people navigating quick replacements, dense rental demand,
-                and stressful move-in timelines.
-              </p>
+          <div className="proof-cards">
+            <article className="proof-card large-proof">
+              <strong>500+ users</strong>
+              <span>already exploring better shared-living decisions</span>
             </article>
-            <article className="city-card reveal">
-              <p className="city-label">Live now</p>
-              <h3>Bengaluru</h3>
+            <article className="proof-card">
               <p>
-                For students and professionals who need trusted discovery in a
-                city with constant flatmate churn.
+                “This feels like a real product, not just another listing page.”
               </p>
+              <strong>Early user feedback</strong>
+            </article>
+            <article className="proof-card">
+              <p>
+                “The trust and fit story is what makes the idea instantly compelling.”
+              </p>
+              <strong>Launch audience insight</strong>
             </article>
           </div>
         </section>
 
-        <section className="section final-cta" id="cta">
-          <div className="cta-panel reveal">
-            <p className="eyebrow">Ready when you are</p>
+        <section className="cities-section section-block" id="cities">
+          <div className="section-intro compact-intro">
+            <span className="section-tag">City focus</span>
+            <h2>Starting where shared living is high-stakes and high-frequency.</h2>
+          </div>
+
+          <div className="city-grid">
+            {cities.map((city) => (
+              <article className="city-card" key={city.name}>
+                <span className="city-stat">{city.stat}</span>
+                <h3>{city.name}</h3>
+                <p>{city.copy}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="cta-section section-block" id="cta">
+          <div className="cta-card">
+            <span className="section-tag">Final CTA</span>
             <h2>Stop compromising on your living situation.</h2>
             <p>
-              Start with better people, better signals, and a smoother path to
-              move in. Explore listings or list your room in minutes.
+              Try a product built for clearer discovery, stronger trust, and
+              faster confidence. Explore the platform or list your room now.
             </p>
-            <div className="hero-actions centered-actions">
+            <div className="hero-buttons centered-buttons">
               <a className="button button-primary" href="/">
                 Find Flatmates
               </a>
@@ -348,20 +386,20 @@ function App() {
         </section>
       </main>
 
-      <footer className="footer">
+      <footer className="site-footer">
         <div>
           <strong>Shared Living OS</strong>
-          <p>Built for people who want a calmer way to find home with others.</p>
+          <p>Built to make shared living decisions feel smarter from the first scroll.</p>
         </div>
-        <div className="footer-links">
+        <div className="footer-nav">
           <a href="/">About</a>
           <a href="/">Contact</a>
           <a href="/">Privacy Policy</a>
-          <a href="/">Instagram</a>
+          <a href="/">Social</a>
         </div>
       </footer>
 
-      <div className="mobile-sticky-cta">
+      <div className="mobile-cta">
         <a className="button button-primary" href="#cta">
           Find Flatmates
         </a>
