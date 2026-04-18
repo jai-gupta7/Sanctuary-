@@ -88,15 +88,15 @@ function App() {
           <a href="#problem">Problem</a>
           <a href="#solution">Solution</a>
           <a href="#features">Features</a>
-          <a href="#cta">Get Started</a>
+          <a href="#cta">Vision</a>
         </nav>
 
         <div className="header-actions">
-          <a className="button button-secondary" href="#cta">
-            List Your Room
+          <a className="button button-secondary" href="#features">
+            View Product Pillars
           </a>
-          <a className="button button-primary desktop-primary" href="#cta">
-            Find Flatmates
+          <a className="button button-primary desktop-primary" href="#solution">
+            Explore the Vision
           </a>
         </div>
       </header>
@@ -117,26 +117,26 @@ function App() {
             </p>
 
             <div className="hero-buttons">
-              <a className="button button-primary" href="#cta">
-                Find Flatmates
+              <a className="button button-primary" href="#solution">
+                Explore the Vision
               </a>
-              <a className="button button-tertiary" href="#solution">
+              <a className="button button-tertiary" href="#how">
                 See how it works
               </a>
             </div>
 
             <div className="hero-stats">
               <article>
-                <strong>500+</strong>
-                <span>users exploring smarter shared living</span>
+                <strong>Trust-first</strong>
+                <span>designed to reduce uncertainty before decisions are made</span>
               </article>
               <article>
-                <strong>92% fit</strong>
-                <span>sample compatibility snapshot</span>
+                <strong>Compatibility-led</strong>
+                <span>built around lifestyle fit, not just rent and location</span>
               </article>
               <article>
-                <strong>No broker chaos</strong>
-                <span>clearer decisions from day one</span>
+                <strong>Move-in clarity</strong>
+                <span>a calmer system for discovery, trust, and handoff</span>
               </article>
             </div>
           </div>
@@ -230,7 +230,7 @@ function App() {
         <section className="solution-section section-block" id="solution">
           <div className="section-intro compact-intro">
             <span className="section-tag">The solution</span>
-            <h2>A homepage that immediately explains the product value.</h2>
+            <h2>A better system for choosing who you live with.</h2>
             <p>
               Shared Living OS makes the full decision journey feel clear. You
               can discover homes, compare fit, verify people, and move forward
@@ -302,7 +302,7 @@ function App() {
           </div>
         </section>
 
-        <section className="how-section section-block">
+        <section className="how-section section-block" id="how">
           <div className="section-intro compact-intro">
             <span className="section-tag">How it works</span>
             <h2>Simple enough to understand in one scroll.</h2>
@@ -320,31 +320,31 @@ function App() {
 
         <section className="proof-section section-block">
           <div className="proof-highlight">
-            <span className="section-tag">Social proof</span>
-            <h2>Built to feel trustworthy before the first click.</h2>
+            <span className="section-tag">Why this matters</span>
+            <h2>We are showing the direction before the product is fully live.</h2>
             <p>
-              A strong homepage should reduce hesitation fast. The trust cues,
-              product framing, and repeated calls to action all push the user
-              from curiosity to action.
+              This homepage is meant to communicate the vision clearly: shared
+              living should feel more trusted, more structured, and far less
+              chaotic than it does today.
             </p>
           </div>
 
           <div className="proof-cards">
             <article className="proof-card large-proof">
-              <strong>500+ users</strong>
-              <span>already exploring better shared-living decisions</span>
+              <strong>Built for trust</strong>
+              <span>identity signals and clearer decisions sit at the center of the product idea</span>
             </article>
             <article className="proof-card">
               <p>
-                “This feels like a real product, not just another listing page.”
+                Discovery, matching, trust, and money should not live in separate fragmented tools.
               </p>
-              <strong>Early user feedback</strong>
+              <strong>Category gap we are addressing</strong>
             </article>
             <article className="proof-card">
               <p>
-                “The trust and fit story is what makes the idea instantly compelling.”
+                Delhi NCR and Bengaluru are the first focus cities because shared-living churn is high and the pain is immediate.
               </p>
-              <strong>Launch audience insight</strong>
+              <strong>Initial launch focus</strong>
             </article>
           </div>
         </section>
@@ -368,18 +368,19 @@ function App() {
 
         <section className="cta-section section-block" id="cta">
           <div className="cta-card">
-            <span className="section-tag">Final CTA</span>
-            <h2>Stop compromising on your living situation.</h2>
+            <span className="section-tag">What comes next</span>
+            <h2>Shared Living OS starts with a clear point of view.</h2>
             <p>
-              Try a product built for clearer discovery, stronger trust, and
-              faster confidence. Explore the platform or list your room now.
+              Right now, this page exists to explain the problem, the product
+              vision, and the first MVP direction. The live product journey will
+              become more conversion-focused once the first MVP is ready.
             </p>
             <div className="hero-buttons centered-buttons">
-              <a className="button button-primary" href="/">
-                Find Flatmates
+              <a className="button button-primary" href="#solution">
+                Revisit the Vision
               </a>
-              <a className="button button-secondary" href="/">
-                List Your Room
+              <a className="button button-secondary" href="#features">
+                View MVP Focus
               </a>
             </div>
           </div>
@@ -400,8 +401,8 @@ function App() {
       </footer>
 
       <div className="mobile-cta">
-        <a className="button button-primary" href="#cta">
-          Find Flatmates
+        <a className="button button-primary" href="#solution">
+          Explore the Vision
         </a>
       </div>
     </div>
