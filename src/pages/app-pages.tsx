@@ -207,7 +207,7 @@ export function ProfilePage() {
                 let profileImageUrl = values.profileImageUrl;
 
                 if (photoFile) {
-                  profileImageUrl = await uploadsApi.mockUpload(photoFile, "profile_photo", "profile");
+                  profileImageUrl = await uploadsApi.uploadFile(photoFile, "profile_photo", "profile");
                 }
 
                 await usersApi.updateMe({
@@ -309,7 +309,7 @@ export function VerificationPage() {
               }
 
               try {
-                const documentUrl = await uploadsApi.mockUpload(documentFile, "kyc_document", "verification");
+                const documentUrl = await uploadsApi.uploadFile(documentFile, "kyc_document", "verification");
                 await verificationApi.submit({
                   documentType: values.documentType,
                   documentUrl
@@ -498,7 +498,7 @@ export function ListingEditorPage() {
             try {
               const uploadedImageUrls =
                 imageFiles.length > 0
-                  ? await Promise.all(imageFiles.map((file) => uploadsApi.mockUpload(file, "listing_image", "listing", id)))
+                  ? await Promise.all(imageFiles.map((file) => uploadsApi.uploadFile(file, "listing_image", "listing", id)))
                   : existingImageUrls;
 
               const payload = {

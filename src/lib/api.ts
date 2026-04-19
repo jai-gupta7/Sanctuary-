@@ -195,13 +195,19 @@ export const uploadsApi = {
       auth: true,
       body: JSON.stringify(payload)
     }),
-  confirm: (payload: { objectKey: string; entityType?: "profile" | "listing" | "verification"; entityId?: string }) =>
+  confirm: (payload: {
+    objectKey: string;
+    entityType?: "profile" | "listing" | "verification";
+    entityId?: string;
+    publicUrl?: string;
+    providerAssetId?: string;
+  }) =>
     apiFetch<UploadRecord>("/uploads/confirm", {
       method: "POST",
       auth: true,
       body: JSON.stringify(payload)
     }),
-  async mockUpload(
+  async uploadFile(
     file: File,
     purpose: "profile_photo" | "listing_image" | "kyc_document",
     entityType?: "profile" | "listing" | "verification",
@@ -213,6 +219,43 @@ export const uploadsApi = {
       contentType: file.type || "application/octet-stream",
       fileSize: file.size
     });
+
+    if (signed.provider === "cloudinary" && signed.fields) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("api_key", signed.fields.api_key);
+      formData.append("timestamp", String(signed.fields.timestamp));
+      formData.append("signature", signed.fields.signature);
+      formData.append("folder", signed.fields.folder);
+      formData.append("public_id", signed.fields.public_id);
+
+      const cloudinaryResponse = await fetch(signed.uploadUrl, {
+        method: "POST",
+        body: formData
+      });
+
+      const cloudinaryJson = (await cloudinaryResponse.json().catch(() => null)) as
+        | { secure_url?: string; public_id?: string; error?: { message?: string } }
+        | null;
+
+      if (!cloudinaryResponse.ok || !cloudinaryJson?.secure_url) {
+        throw new ApiError(
+          cloudinaryJson?.error?.message ?? "Cloudinary upload failed",
+          cloudinaryResponse.status || 500,
+          "UPLOAD_FAILED"
+        );
+      }
+
+      const confirmed = await uploadsApi.confirm({
+        objectKey: signed.objectKey,
+        entityType,
+        entityId,
+        publicUrl: cloudinaryJson.secure_url,
+        providerAssetId: cloudinaryJson.public_id
+      });
+
+      return confirmed.publicUrl;
+    }
 
     const confirmed = await uploadsApi.confirm({
       objectKey: signed.objectKey,

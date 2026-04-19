@@ -159,6 +159,14 @@ export type UploadSignResponse = {
   uploadUrl: string;
   publicUrl: string;
   method: string;
+  provider: "mock" | "cloudinary";
+  fields?: {
+    api_key: string;
+    timestamp: number;
+    signature: string;
+    folder: string;
+    public_id: string;
+  };
 };
 
 export type UploadRecord = {
@@ -170,6 +178,8 @@ export type UploadRecord = {
   fileSize: number;
   objectKey: string;
   publicUrl: string;
+  provider?: "mock" | "cloudinary";
+  providerAssetId?: string;
   status: "signed" | "confirmed";
   entityType?: "profile" | "listing" | "verification";
   entityId?: string;
