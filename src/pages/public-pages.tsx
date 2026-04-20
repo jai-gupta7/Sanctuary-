@@ -65,21 +65,47 @@ function mapListingDetail(data: ListingDetailPayload): ListingDetailVM {
 }
 
 function ListingSummaryCard({ listing }: { listing: ListingCardVM }) {
+  const moveInLabel = formatDate(listing.moveInDate);
+
   return (
     <Card className="listing-summary-card">
-      <div className="listing-summary-top">
-        <Badge tone={listing.status === "active" ? "success" : "warning"}>{listing.status}</Badge>
-        <span>{formatDate(listing.moveInDate)}</span>
+      <div className="listing-card-visual">
+        <div className="listing-summary-top">
+          <Badge tone={listing.status === "active" ? "success" : "warning"}>{listing.status}</Badge>
+          <span>{moveInLabel}</span>
+        </div>
+        <div className="listing-card-overlay">
+          <span className="listing-card-label">Shared living</span>
+          <strong>{listing.location}</strong>
+        </div>
       </div>
-      <h3>{listing.title}</h3>
-      <p>{listing.location}</p>
-      <div className="listing-metrics">
-        <strong>{formatCurrency(listing.rent)}</strong>
-        <span>Deposit {formatCurrency(listing.deposit)}</span>
+
+      <div className="listing-card-body">
+        <div className="listing-card-copy">
+          <h3>{listing.title}</h3>
+          <p>Trust-first move-in context with clear pricing and a structured next step.</p>
+        </div>
+
+        <div className="listing-price-row">
+          <div>
+            <span>Monthly rent</span>
+            <strong>{formatCurrency(listing.rent)}</strong>
+          </div>
+          <div>
+            <span>Deposit</span>
+            <strong>{formatCurrency(listing.deposit)}</strong>
+          </div>
+        </div>
+
+        <div className="listing-trust-row">
+          <Badge tone="neutral">Move-in {moveInLabel}</Badge>
+          <Badge tone="primary">Marketplace verified flow</Badge>
+        </div>
+
+        <ButtonLink className="full-width" to={`/listings/${listing.id}`} tone="secondary">
+          View listing
+        </ButtonLink>
       </div>
-      <ButtonLink className="full-width" to={`/listings/${listing.id}`} tone="secondary">
-        View listing
-      </ButtonLink>
     </Card>
   );
 }
@@ -109,14 +135,32 @@ export function ExplorePage() {
     queryFn: () => listingsApi.list(query)
   });
 
+  const listingCount = listingsQuery.data?.items.length ?? 0;
+
   return (
     <div className="page-shell">
-      <PageHeader
-        eyebrow="Public marketplace"
-        title="Explore listings"
-        description="Browse active shared-living options with trust-first listing details and clear move-in context."
-        actions={<ButtonLink to="/auth/login">Sign in to interact</ButtonLink>}
-      />
+      <section className="marketplace-hero">
+        <div className="marketplace-hero-copy">
+          <span className="section-tag">Public marketplace</span>
+          <h1 className="page-title marketplace-title">Explore listings</h1>
+          <p className="page-description">
+            Browse active shared-living options with trust-first context, clean pricing, and a smoother path from discovery to conversation.
+          </p>
+        </div>
+        <div className="marketplace-hero-panel">
+          <div className="marketplace-stat-grid">
+            <article>
+              <span>Live listings</span>
+              <strong>{listingCount || "Fresh"}</strong>
+            </article>
+            <article>
+              <span>Market tone</span>
+              <strong>Trust first</strong>
+            </article>
+          </div>
+          <ButtonLink to="/auth/login">Sign in to interact</ButtonLink>
+        </div>
+      </section>
 
       <Card className="filter-card">
         <form
@@ -139,6 +183,10 @@ export function ExplorePage() {
             <Button type="submit">Apply filters</Button>
           </div>
         </form>
+        <div className="filter-helper-row">
+          <span>Best for: browsing active listings before you commit to onboarding.</span>
+          <span>Tip: open a listing to review pricing, preferences, and lister context together.</span>
+        </div>
       </Card>
 
       {listingsQuery.isLoading ? <LoadingBlock label="Loading listings..." /> : null}
@@ -156,7 +204,7 @@ export function ExplorePage() {
       ) : null}
 
       {!listingsQuery.isError && listingsQuery.data?.items.length ? (
-        <div className="card-grid">
+        <div className="listing-grid">
           {listingsQuery.data.items.map((listing) => (
             <ListingSummaryCard key={listing._id} listing={mapListingCard(listing)} />
           ))}
@@ -269,15 +317,38 @@ export function ListingDetailPage() {
   }
 
   const listing = mapListingDetail(listingQuery.data);
+  const primaryImage = listing.images[0];
+  const secondaryImages = listing.images.slice(1);
 
   return (
     <div className="page-shell">
-      <PageHeader
-        eyebrow="Listing detail"
-        title={listing.title}
-        description={`${listing.location} · Move-in ${formatDate(listing.moveInDate)}`}
-        actions={
-          listing.isOwner ? (
+      <section className="listing-detail-hero">
+        <div className="listing-detail-copy">
+          <div className="listing-detail-badges">
+            <Badge tone={listing.status === "active" ? "success" : "warning"}>{listing.status}</Badge>
+            {listing.listerVerified ? <Badge tone="primary">Verified lister</Badge> : <Badge tone="neutral">Verification pending</Badge>}
+          </div>
+          <h1 className="page-title listing-detail-title">{listing.title}</h1>
+          <p className="page-description">
+            {listing.location} · Move-in {formatDate(listing.moveInDate)}
+          </p>
+          <div className="listing-hero-metrics">
+            <article>
+              <span>Rent</span>
+              <strong>{formatCurrency(listing.rent)}</strong>
+            </article>
+            <article>
+              <span>Deposit</span>
+              <strong>{formatCurrency(listing.deposit)}</strong>
+            </article>
+            <article>
+              <span>Best used for</span>
+              <strong>{listing.isOwner ? "Owner control" : "Seeker decision"}</strong>
+            </article>
+          </div>
+        </div>
+        <div className="listing-detail-actions">
+          {listing.isOwner ? (
             <ButtonLink to={`/listings/${listing.id}/edit`} tone="secondary">
               Edit listing
             </ButtonLink>
@@ -285,28 +356,36 @@ export function ListingDetailPage() {
             <ButtonLink to="/explore" tone="secondary">
               Back to explore
             </ButtonLink>
-          )
-        }
-      />
+          )}
+        </div>
+      </section>
 
       <div className="detail-grid">
         <Card className="detail-card">
-          <div className="image-strip">
-            {listing.images.length ? (
-              listing.images.map((image) => (
-                <div key={image} className="detail-image">
-                  <img alt={listing.title} src={image} />
-                </div>
-              ))
+          <div className="listing-gallery">
+            {primaryImage ? (
+              <div className="detail-image detail-image-primary">
+                <img alt={listing.title} src={primaryImage} />
+              </div>
             ) : (
-              <div className="detail-image detail-image-placeholder">No images uploaded yet</div>
+              <div className="detail-image detail-image-placeholder detail-image-primary">No images uploaded yet</div>
             )}
+
+            {secondaryImages.length ? (
+              <div className="image-strip">
+                {secondaryImages.map((image) => (
+                  <div key={image} className="detail-image detail-image-secondary">
+                    <img alt={listing.title} src={image} />
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <div className="detail-section">
-            <div className="listing-summary-top">
-              <Badge tone={listing.status === "active" ? "success" : "warning"}>{listing.status}</Badge>
-              {listing.listerVerified ? <Badge tone="primary">Verified lister</Badge> : <Badge tone="neutral">Verification pending</Badge>}
+            <div className="section-heading-row">
+              <h3>Why this listing feels credible</h3>
+              <Badge tone="neutral">Move-in clarity</Badge>
             </div>
             <p>{listing.description}</p>
             <div className="detail-metrics">
@@ -326,7 +405,10 @@ export function ListingDetailPage() {
           </div>
 
           <div className="detail-section">
-            <h3>Household context</h3>
+            <div className="section-heading-row">
+              <h3>Household context</h3>
+              <Badge tone="primary">Preference summary</Badge>
+            </div>
             <ul className="chip-list">
               {listing.preferences.map((preference) => (
                 <li key={preference}>
@@ -338,15 +420,23 @@ export function ListingDetailPage() {
         </Card>
 
         <div className="side-stack">
-          <Card>
+          <Card className="identity-card">
+            <span className="section-tag">Lister profile</span>
             <h3>{listing.listerName}</h3>
-            {listing.listerOccupation ? <p>{listing.listerOccupation}</p> : null}
-            {listing.listerBio ? <p>{listing.listerBio}</p> : null}
+            {listing.listerOccupation ? <p className="identity-role">{listing.listerOccupation}</p> : null}
+            {listing.listerBio ? <p>{listing.listerBio}</p> : <p>Profile details will help you decide if the household dynamic feels right.</p>}
+            <div className="identity-trust-row">
+              {listing.listerVerified ? <Badge tone="primary">Verified</Badge> : <Badge tone="neutral">Verification pending</Badge>}
+              <Badge tone="neutral">{listing.isOwner ? "Your listing" : "Public profile view"}</Badge>
+            </div>
           </Card>
 
           {listing.isOwner ? (
-            <Card>
-              <h3>Received applications</h3>
+            <Card className="action-card owner-applications-card">
+              <div className="section-heading-row">
+                <h3>Received applications</h3>
+                <Badge tone="neutral">{ownerApplicationsQuery.data?.length ?? 0} in pipeline</Badge>
+              </div>
               {ownerApplicationsQuery.data?.length ? (
                 <div className="stack-list">
                   {ownerApplicationsQuery.data.map((application) => (
@@ -371,11 +461,12 @@ export function ListingDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p>No applications yet.</p>
+                <p>No applications yet. Once seekers apply, you’ll review them here and move the strongest fit forward.</p>
               )}
             </Card>
           ) : (
-            <Card>
+            <Card className="action-card">
+              <span className="section-tag">Next step</span>
               <h3>Take the next step</h3>
               {!isAuthenticated ? (
                 <>

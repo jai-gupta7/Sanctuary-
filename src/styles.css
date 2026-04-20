@@ -538,6 +538,7 @@ p {
 .proof-cards,
 .city-grid,
 .card-grid,
+.listing-grid,
 .filters-grid,
 .detail-grid,
 .stat-grid {
@@ -877,6 +878,184 @@ p {
   border-radius: 1.2rem;
 }
 
+.marketplace-hero,
+.listing-detail-hero {
+  display: grid;
+  gap: 1.25rem;
+  margin-bottom: 1.4rem;
+}
+
+.marketplace-hero {
+  padding: 1.8rem;
+  border: 1px solid rgba(215, 226, 245, 0.9);
+  border-radius: calc(var(--radius-lg) + 4px);
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(20, 184, 166, 0.12), transparent 24%),
+    rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow);
+}
+
+.marketplace-title,
+.listing-detail-title {
+  max-width: 12ch;
+}
+
+.marketplace-hero-copy,
+.listing-detail-copy {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.marketplace-hero-panel,
+.listing-detail-actions {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.marketplace-stat-grid,
+.listing-hero-metrics,
+.listing-price-row {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.marketplace-stat-grid article,
+.listing-hero-metrics article,
+.listing-price-row > div {
+  padding: 1rem 1.05rem;
+  border-radius: 1.15rem;
+  border: 1px solid rgba(215, 226, 245, 0.95);
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.marketplace-stat-grid span,
+.listing-hero-metrics span,
+.listing-price-row span,
+.listing-card-label,
+.filter-helper-row span,
+.identity-role {
+  display: block;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.filter-helper-row {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(215, 226, 245, 0.9);
+}
+
+.listing-grid {
+  display: grid;
+  gap: 1.15rem;
+}
+
+.listing-summary-card {
+  padding: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 249, 255, 0.96)),
+    var(--surface);
+}
+
+.listing-card-visual {
+  position: relative;
+  min-height: 13rem;
+  padding: 1rem;
+  background:
+    linear-gradient(145deg, rgba(15, 23, 42, 0.86), rgba(37, 99, 235, 0.9)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 55%);
+}
+
+.listing-card-visual::after {
+  content: "";
+  position: absolute;
+  inset: auto -10% -20% 35%;
+  height: 9rem;
+  border-radius: 999px;
+  background: rgba(20, 184, 166, 0.18);
+  filter: blur(18px);
+}
+
+.listing-card-visual .listing-summary-top {
+  position: relative;
+  z-index: 1;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.listing-card-overlay {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 4.2rem;
+}
+
+.listing-card-overlay strong {
+  color: white;
+  font-size: 1.4rem;
+  line-height: 1.05;
+}
+
+.listing-card-label {
+  color: rgba(255, 255, 255, 0.72);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+}
+
+.listing-card-body,
+.action-card,
+.identity-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.listing-card-body {
+  padding: 1.15rem;
+}
+
+.listing-card-copy {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.listing-card-copy h3 {
+  margin-bottom: 0;
+}
+
+.listing-price-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.listing-trust-row,
+.listing-detail-badges,
+.identity-trust-row,
+.section-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.listing-detail-hero {
+  padding: 0.2rem 0 0.4rem;
+}
+
+.listing-hero-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 0.35rem;
+}
+
+.listing-gallery {
+  display: grid;
+  gap: 0.85rem;
+}
+
 .listing-metrics,
 .detail-metrics {
   display: flex;
@@ -891,6 +1070,9 @@ p {
 
 .detail-card {
   padding: 1.2rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 255, 0.95)),
+    white;
 }
 
 .detail-section {
@@ -904,6 +1086,14 @@ p {
   overflow: hidden;
   min-height: 11rem;
   background: var(--surface-alt);
+}
+
+.detail-image-primary {
+  min-height: 20rem;
+}
+
+.detail-image-secondary {
+  min-height: 8.5rem;
 }
 
 .detail-image img {
@@ -1006,6 +1196,19 @@ p {
   color: #0f766e;
 }
 
+.identity-card,
+.action-card {
+  padding: 1.25rem;
+}
+
+.owner-applications-card .mini-listing {
+  background: rgba(238, 244, 255, 0.68);
+}
+
+.section-heading-row {
+  justify-content: space-between;
+}
+
 .toast-error {
   color: var(--danger);
 }
@@ -1097,6 +1300,7 @@ p {
   .feature-grid,
   .city-grid,
   .card-grid,
+  .listing-grid,
   .filters-grid,
   .stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1115,6 +1319,12 @@ p {
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
   }
 
+  .marketplace-hero,
+  .listing-detail-hero {
+    grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.55fr);
+    align-items: start;
+  }
+
   .site-footer {
     grid-template-columns: 1.3fr 1fr;
     align-items: start;
@@ -1125,8 +1335,21 @@ p {
   .story-grid,
   .feature-grid,
   .card-grid,
+  .listing-grid,
   .stat-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 759px) {
+  .marketplace-hero,
+  .listing-detail-hero {
+    padding: 1.2rem;
+  }
+
+  .listing-price-row,
+  .listing-hero-metrics {
+    grid-template-columns: 1fr;
   }
 }
 
