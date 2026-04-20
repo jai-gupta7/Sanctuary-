@@ -11,6 +11,7 @@ import type {
   Paginated,
   UploadRecord,
   UploadSignResponse,
+  AdminVerificationReview,
   UserProfile,
   UserRecord,
   VerificationRecord
@@ -275,7 +276,7 @@ export const verificationApi = {
       auth: true,
       body: JSON.stringify(payload)
     }),
-  adminList: () => apiFetch<VerificationRecord[]>("/admin/verifications", { auth: true }),
+  adminList: () => apiFetch<AdminVerificationReview[]>("/admin/verifications", { auth: true }),
   approve: (id: string) =>
     apiFetch<VerificationRecord>(`/admin/verifications/${id}/approve`, {
       method: "POST",
@@ -308,6 +309,11 @@ export const listingsApi = {
   archive: (id: string) =>
     apiFetch<null>(`/listings/${id}`, {
       method: "DELETE",
+      auth: true
+    }),
+  restore: (id: string) =>
+    apiFetch<ListingRecord>(`/listings/${id}/restore`, {
+      method: "POST",
       auth: true
     }),
   adminList: () => apiFetch<ListingRecord[]>("/admin/listings", { auth: true }),

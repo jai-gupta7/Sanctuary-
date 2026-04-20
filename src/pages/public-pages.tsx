@@ -238,7 +238,16 @@ export function ListingDetailPage() {
   const ownerApplicationsQuery = useQuery({
     queryKey: ["listing-applications", id],
     queryFn: () => applicationsApi.forListing(id),
-    enabled: Boolean(id && listingQuery.data?.viewerContext?.isOwner)
+    enabled: Boolean(id && listingQuery.data?.viewerContext?.isOwner),
+    refetchInterval: listingQuery.data?.viewerContext?.isOwner ? 5000 : false,
+    refetchOnWindowFocus: true
+  });
+
+  const myApplicationsQuery = useQuery({
+    queryKey: ["my-applications"],
+    queryFn: () => applicationsApi.mine(),
+    enabled: Boolean(id && isAuthenticated && !listingQuery.data?.viewerContext?.isOwner),
+    refetchOnWindowFocus: true
   });
 
   const applyMutation = useMutation({
@@ -319,6 +328,8 @@ export function ListingDetailPage() {
   const listing = mapListingDetail(listingQuery.data);
   const primaryImage = listing.images[0];
   const secondaryImages = listing.images.slice(1);
+  const trimmedApplicationMessage = applicationMessage.trim();
+  const existingApplication = myApplicationsQuery.data?.find((application) => application.listingId === id);
 
   return (
     <div className="page-shell">
@@ -359,6 +370,44 @@ export function ListingDetailPage() {
           )}
         </div>
       </section>
+
+      {listing.isOwner ? (
+        <Card className="owner-review-card">
+          <div className="section-heading-row">
+            <div>
+              <span className="section-tag">Owner review queue</span>
+              <h3>Received applications</h3>
+            </div>
+            <Badge tone="neutral">{ownerApplicationsQuery.data?.length ?? 0} in pipeline</Badge>
+          </div>
+          {ownerApplicationsQuery.data?.length ? (
+            <div className="stack-list">
+              {ownerApplicationsQuery.data.map((application) => (
+                <div key={application._id} className="mini-listing">
+                  <div>
+                    <strong>Applicant {application.applicantId.slice(-6)}</strong>
+                    <p>{application.message || "No intro message shared."}</p>
+                    <Badge tone="neutral">{application.status}</Badge>
+                  </div>
+                  <div className="mini-actions">
+                    <Button tone="secondary" onClick={() => applicationStatusMutation.mutate({ applicationId: application._id, nextStatus: "shortlisted" })} type="button">
+                      Shortlist
+                    </Button>
+                    <Button onClick={() => applicationStatusMutation.mutate({ applicationId: application._id, nextStatus: "accepted" })} type="button">
+                      Accept
+                    </Button>
+                    <Button tone="danger" onClick={() => applicationStatusMutation.mutate({ applicationId: application._id, nextStatus: "rejected" })} type="button">
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>No applications yet. Once seekers apply, you’ll review them here and move the strongest fit forward.</p>
+          )}
+        </Card>
+      ) : null}
 
       <div className="detail-grid">
         <Card className="detail-card">
@@ -431,40 +480,7 @@ export function ListingDetailPage() {
             </div>
           </Card>
 
-          {listing.isOwner ? (
-            <Card className="action-card owner-applications-card">
-              <div className="section-heading-row">
-                <h3>Received applications</h3>
-                <Badge tone="neutral">{ownerApplicationsQuery.data?.length ?? 0} in pipeline</Badge>
-              </div>
-              {ownerApplicationsQuery.data?.length ? (
-                <div className="stack-list">
-                  {ownerApplicationsQuery.data.map((application) => (
-                    <div key={application._id} className="mini-listing">
-                      <div>
-                        <strong>Applicant {application.applicantId.slice(-6)}</strong>
-                        <p>{application.message || "No intro message shared."}</p>
-                        <Badge tone="neutral">{application.status}</Badge>
-                      </div>
-                      <div className="mini-actions">
-                        <Button tone="secondary" onClick={() => applicationStatusMutation.mutate({ applicationId: application._id, nextStatus: "shortlisted" })} type="button">
-                          Shortlist
-                        </Button>
-                        <Button onClick={() => applicationStatusMutation.mutate({ applicationId: application._id, nextStatus: "accepted" })} type="button">
-                          Accept
-                        </Button>
-                        <Button tone="danger" onClick={() => applicationStatusMutation.mutate({ applicationId: application._id, nextStatus: "rejected" })} type="button">
-                          Reject
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p>No applications yet. Once seekers apply, you’ll review them here and move the strongest fit forward.</p>
-              )}
-            </Card>
-          ) : (
+          {!listing.isOwner ? (
             <Card className="action-card">
               <span className="section-tag">Next step</span>
               <h3>Take the next step</h3>
@@ -472,6 +488,32 @@ export function ListingDetailPage() {
                 <>
                   <p>Sign in to apply, message the lister, and save your shared-living flow in one place.</p>
                   <ButtonLink to="/auth/login">Sign in to continue</ButtonLink>
+                </>
+              ) : existingApplication ? (
+                <>
+                  <InlineNotice tone="success">
+                    You already applied to this listing. Track progress and next steps from your applications workspace.
+                  </InlineNotice>
+                  <div className="stack-list">
+                    <div className="mini-listing">
+                      <div>
+                        <strong>Application status</strong>
+                        <p>{existingApplication.message || "Your intro was submitted successfully."}</p>
+                        <Badge tone="primary">{existingApplication.status}</Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="stack-actions">
+                    <ButtonLink to="/applications">View my application</ButtonLink>
+                    <Button
+                      tone="secondary"
+                      disabled={!currentUser?.eligibility.eligible || createConversationMutation.isPending}
+                      onClick={() => createConversationMutation.mutate(listingQuery.data.listing.createdBy)}
+                      type="button"
+                    >
+                      Start chat
+                    </Button>
+                  </div>
                 </>
               ) : (
                 <>
@@ -487,9 +529,12 @@ export function ListingDetailPage() {
                       onChange={(event) => setApplicationMessage(event.target.value)}
                     />
                   </Field>
+                  <InlineNotice tone="info">
+                    Add a short intro message so the lister understands your intent before you join their review queue.
+                  </InlineNotice>
                   <div className="stack-actions">
                     <Button
-                      disabled={!currentUser?.eligibility.eligible || applyMutation.isPending}
+                      disabled={!currentUser?.eligibility.eligible || applyMutation.isPending || trimmedApplicationMessage.length < 10}
                       onClick={() => applyMutation.mutate()}
                       type="button"
                     >
@@ -507,7 +552,7 @@ export function ListingDetailPage() {
                 </>
               )}
             </Card>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

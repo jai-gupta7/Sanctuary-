@@ -9,7 +9,7 @@ import { Button, ButtonLink, Card, EmptyState, Field, InlineNotice, Input, Loadi
 import { adminApi, applicationsApi, conversationsApi, listingsApi, notificationsApi, uploadsApi, usersApi, verificationApi } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
-import type { CurrentUserPayload, ListingDetailPayload, ListingRecord, NotificationRecord, VerificationRecord } from "../lib/types";
+import type { AdminVerificationReview, CurrentUserPayload, ListingDetailPayload, ListingRecord, NotificationRecord, VerificationRecord } from "../lib/types";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(value);
@@ -115,7 +115,13 @@ export function DashboardPage() {
             <ButtonLink to="/profile" tone="secondary">
               Complete profile
             </ButtonLink>
-            <ButtonLink to="/verification">Open verification</ButtonLink>
+            {currentUser?.verification?.status === "verified" ? (
+              <ButtonLink to="/explore">Explore listings</ButtonLink>
+            ) : currentUser?.verification?.status === "pending" ? (
+              <ButtonLink to="/verification">Review verification status</ButtonLink>
+            ) : (
+              <ButtonLink to="/verification">Start verification</ButtonLink>
+            )}
           </div>
         </Card>
 
@@ -142,6 +148,7 @@ export function DashboardPage() {
 }
 
 export function ProfilePage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { currentUser, refreshCurrentUser } = useAuth();
   const { pushToast } = useToast();
@@ -176,6 +183,14 @@ export function ProfilePage() {
     });
   }, [currentUser, reset]);
 
+  const missingSteps = [
+    !(currentUser?.profile?.fullName ?? "").trim() ? "add your full name" : null,
+    !currentUser?.profile?.occupation ? "add your occupation" : null,
+    !currentUser?.profile?.gender ? "select your gender preference" : null,
+    !currentUser?.eligibility.hasPhoto ? "upload a profile photo" : null,
+    (currentUser?.eligibility.score ?? 0) < 70 ? "raise your profile completion above 70%" : null
+  ].filter(Boolean) as string[];
+
   return (
     <div className="page-shell">
       <PageHeader
@@ -197,6 +212,19 @@ export function ProfilePage() {
           ) : (
             <InlineNotice tone="success">Your account is interaction-ready.</InlineNotice>
           )}
+          {!currentUser?.eligibility.eligible && missingSteps.length ? (
+            <InlineNotice tone="info">
+              Next to unlock marketplace actions: {missingSteps.join(", ")}.
+            </InlineNotice>
+          ) : null}
+          {currentUser?.eligibility.eligible ? (
+            <div className="stack-actions">
+              <ButtonLink to="/listings/new">Create your first listing</ButtonLink>
+              <ButtonLink to="/explore" tone="secondary">
+                Explore listings
+              </ButtonLink>
+            </div>
+          ) : null}
         </Card>
 
         <Card>
@@ -210,14 +238,35 @@ export function ProfilePage() {
                   profileImageUrl = await uploadsApi.uploadFile(photoFile, "profile_photo", "profile");
                 }
 
-                await usersApi.updateMe({
+                const updatedUser = await usersApi.updateMe({
                   ...values,
                   profileImageUrl
                 });
 
                 await refreshCurrentUser();
                 await queryClient.invalidateQueries({ queryKey: ["current-user"] });
-                pushToast("Profile updated.", "success");
+                setPhotoFile(null);
+
+                if (updatedUser.eligibility.eligible) {
+                  pushToast("Profile updated. Your account is ready, so we’re taking you to the dashboard.", "success");
+                  navigate("/dashboard");
+                  return;
+                }
+
+                const remainingSteps = [
+                  !updatedUser.profile?.fullName ? "full name" : null,
+                  !updatedUser.profile?.occupation ? "occupation" : null,
+                  !updatedUser.profile?.gender ? "gender" : null,
+                  !updatedUser.eligibility.hasPhoto ? "profile photo" : null,
+                  updatedUser.eligibility.score < 70 ? "completion score above 70%" : null
+                ].filter(Boolean);
+
+                pushToast(
+                  remainingSteps.length
+                    ? `Profile saved. Still needed: ${remainingSteps.join(", ")}.`
+                    : "Profile updated.",
+                  "success"
+                );
               } catch (error) {
                 pushToast(error instanceof Error ? error.message : "Unable to update profile", "error");
               }
@@ -280,6 +329,7 @@ export function VerificationPage() {
   });
 
   const status = verificationQuery.data?.status ?? "not_submitted";
+  const isFormLocked = status === "pending" || status === "verified";
 
   return (
     <div className="page-shell">
@@ -297,44 +347,63 @@ export function VerificationPage() {
           {verificationQuery.data?.rejectionReason ? <InlineNotice tone="danger">{verificationQuery.data.rejectionReason}</InlineNotice> : null}
           {status === "verified" ? <InlineNotice tone="success">Your profile is verified.</InlineNotice> : null}
           {status === "pending" ? <InlineNotice tone="info">Your submission is awaiting admin review.</InlineNotice> : null}
+          {status === "verified" ? (
+            <InlineNotice tone="info">
+              Verification is complete, so no further document upload is needed right now.
+            </InlineNotice>
+          ) : null}
         </Card>
 
         <Card>
-          <form
-            className="form-grid"
-            onSubmit={handleSubmit(async (values) => {
-              if (!documentFile) {
-                pushToast("Choose a document file first.", "error");
-                return;
-              }
+          {status === "verified" ? (
+            <div className="form-grid">
+              <InlineNotice tone="success">
+                Your verification has already been approved. This submission form is now locked to avoid duplicate uploads.
+              </InlineNotice>
+              <ButtonLink to="/dashboard">Back to dashboard</ButtonLink>
+            </div>
+          ) : (
+            <form
+              className="form-grid"
+              onSubmit={handleSubmit(async (values) => {
+                if (!documentFile) {
+                  pushToast("Choose a document file first.", "error");
+                  return;
+                }
 
-              try {
-                const documentUrl = await uploadsApi.uploadFile(documentFile, "kyc_document", "verification");
-                await verificationApi.submit({
-                  documentType: values.documentType,
-                  documentUrl
-                });
-                await queryClient.invalidateQueries({ queryKey: ["my-verification"] });
-                pushToast("Verification submitted.", "success");
-              } catch (error) {
-                pushToast(error instanceof Error ? error.message : "Unable to submit verification", "error");
-              }
-            })}
-          >
-            <Field label="Document type" error={errors.documentType?.message}>
-              <Select {...register("documentType")}>
-                <option value="government_id">Government ID</option>
-                <option value="passport">Passport</option>
-                <option value="driver_license">Driver's license</option>
-              </Select>
-            </Field>
-            <Field label="Document file">
-              <Input type="file" accept="image/*,application/pdf" onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)} />
-            </Field>
-            <Button type="submit" disabled={isSubmitting || status === "pending"}>
-              {isSubmitting ? "Submitting..." : status === "pending" ? "Submission pending" : "Submit verification"}
-            </Button>
-          </form>
+                try {
+                  const documentUrl = await uploadsApi.uploadFile(documentFile, "kyc_document", "verification");
+                  await verificationApi.submit({
+                    documentType: values.documentType,
+                    documentUrl
+                  });
+                  await queryClient.invalidateQueries({ queryKey: ["my-verification"] });
+                  pushToast("Verification submitted.", "success");
+                } catch (error) {
+                  pushToast(error instanceof Error ? error.message : "Unable to submit verification", "error");
+                }
+              })}
+            >
+              <Field label="Document type" error={errors.documentType?.message}>
+                <Select {...register("documentType")} disabled={isFormLocked}>
+                  <option value="government_id">Government ID</option>
+                  <option value="passport">Passport</option>
+                  <option value="driver_license">Driver's license</option>
+                </Select>
+              </Field>
+              <Field label="Document file">
+                <Input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  disabled={isFormLocked}
+                  onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)}
+                />
+              </Field>
+              <Button type="submit" disabled={isSubmitting || isFormLocked}>
+                {isSubmitting ? "Submitting..." : status === "pending" ? "Submission pending" : "Submit verification"}
+              </Button>
+            </form>
+          )}
         </Card>
       </div>
     </div>
@@ -360,48 +429,102 @@ export function MyListingsPage() {
     }
   });
 
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => listingsApi.restore(id),
+    onSuccess: () => {
+      pushToast("Listing restored.", "success");
+      void queryClient.invalidateQueries({ queryKey: ["my-listings"] });
+      void queryClient.invalidateQueries({ queryKey: ["listings"] });
+    },
+    onError: (error) => {
+      pushToast(error instanceof Error ? error.message : "Unable to restore listing", "error");
+    }
+  });
+
+  const activeListings = listingsQuery.data?.filter((listing) => !listing.isDeleted) ?? [];
+  const archivedListings = listingsQuery.data?.filter((listing) => listing.isDeleted || listing.status === "archived") ?? [];
+
   return (
     <div className="page-shell">
       <PageHeader
         eyebrow="Owner workspace"
         title="My listings"
-        description="Drafts, active listings, and owner-side controls all live here."
+        description="Active, draft, and archived listings all stay visible here so owners can manage lifecycle without losing access."
         actions={<ButtonLink to="/listings/new">Create listing</ButtonLink>}
       />
 
       {listingsQuery.isLoading ? <LoadingBlock label="Loading your listings..." /> : null}
 
-      {listingsQuery.data?.length ? (
-        <div className="card-grid">
-          {listingsQuery.data.map((listing) => (
-            <Card key={listing._id} className="listing-summary-card">
-              <div className="listing-summary-top">
-                <span>{listing.status}</span>
-                <span>{formatDate(listing.moveInDate)}</span>
-              </div>
-              <h3>{listing.title}</h3>
-              <p>{listing.locationText}</p>
-              <div className="listing-metrics">
-                <strong>{formatCurrency(listing.rent)}</strong>
-                <span>{formatCurrency(listing.deposit)} deposit</span>
-              </div>
-              <div className="mini-actions">
-                <ButtonLink tone="secondary" to={`/listings/${listing._id}`}>
-                  View
-                </ButtonLink>
-                <ButtonLink tone="secondary" to={`/listings/${listing._id}/edit`}>
-                  Edit
-                </ButtonLink>
-                <Button tone="danger" onClick={() => archiveMutation.mutate(listing._id)} type="button">
-                  Archive
-                </Button>
-              </div>
-            </Card>
-          ))}
+      {activeListings.length ? (
+        <div className="stack-list">
+          <div className="section-heading-row">
+            <h3>Current listings</h3>
+            <span>{activeListings.length} visible in workspace</span>
+          </div>
+          <div className="card-grid">
+            {activeListings.map((listing) => (
+              <Card key={listing._id} className="listing-summary-card">
+                <div className="listing-summary-top">
+                  <span>{listing.status}</span>
+                  <span>{formatDate(listing.moveInDate)}</span>
+                </div>
+                <h3>{listing.title}</h3>
+                <p>{listing.locationText}</p>
+                <div className="listing-metrics">
+                  <strong>{formatCurrency(listing.rent)}</strong>
+                  <span>{formatCurrency(listing.deposit)} deposit</span>
+                </div>
+                <div className="mini-actions">
+                  <ButtonLink tone="secondary" to={`/listings/${listing._id}`}>
+                    View
+                  </ButtonLink>
+                  <ButtonLink tone="secondary" to={`/listings/${listing._id}/edit`}>
+                    Edit
+                  </ButtonLink>
+                  <Button tone="danger" onClick={() => archiveMutation.mutate(listing._id)} type="button">
+                    Archive
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
       ) : null}
 
-      {!listingsQuery.isLoading && !listingsQuery.data?.length ? (
+      {archivedListings.length ? (
+        <div className="stack-list">
+          <div className="section-heading-row">
+            <h3>Archived listings</h3>
+            <span>Hidden from the public marketplace, still recoverable by you</span>
+          </div>
+          <div className="card-grid">
+            {archivedListings.map((listing) => (
+              <Card key={listing._id} className="listing-summary-card archived-listing-card">
+                <div className="listing-summary-top">
+                  <span>{listing.status}</span>
+                  <span>{listing.deletedAt ? `Archived ${formatDate(listing.deletedAt)}` : formatDate(listing.moveInDate)}</span>
+                </div>
+                <h3>{listing.title}</h3>
+                <p>{listing.locationText}</p>
+                <div className="listing-metrics">
+                  <strong>{formatCurrency(listing.rent)}</strong>
+                  <span>{formatCurrency(listing.deposit)} deposit</span>
+                </div>
+                <div className="mini-actions">
+                  <ButtonLink tone="secondary" to={`/listings/${listing._id}`}>
+                    View
+                  </ButtonLink>
+                  <Button tone="secondary" onClick={() => restoreMutation.mutate(listing._id)} type="button">
+                    Restore
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {!listingsQuery.isLoading && !activeListings.length && !archivedListings.length ? (
         <EmptyState
           title="No listings yet"
           copy="Create your first draft to start testing the lister workflow."
@@ -938,12 +1061,20 @@ export function AdminVerificationsPage() {
     <div className="page-shell">
       <PageHeader eyebrow="Admin" title="Verifications" description="Approve or reject KYC-lite trust submissions." />
       <div className="stack-list">
-        {verificationsQuery.data?.map((verification: VerificationRecord) => (
+        {verificationsQuery.data?.map((verification: AdminVerificationReview) => (
           <Card key={verification._id} className="mini-listing">
             <div>
-              <strong>User {verification.userId.slice(-6)}</strong>
-              <p>{verification.documentType}</p>
+              <strong>{verification.reviewerContext?.fullName || `User ${verification.userId.slice(-6)}`}</strong>
+              <p>{verification.reviewerContext?.phone || "Phone not available"}</p>
+              {verification.reviewerContext?.occupation ? <p>{verification.reviewerContext.occupation}</p> : null}
+              <p>Document: {verification.documentType}</p>
               <p>Status: {verification.status}</p>
+              <p>Submitted: {formatDate(verification.createdAt)}</p>
+              <div className="mini-actions">
+                <a className="button button-secondary" href={verification.documentUrl} target="_blank" rel="noreferrer">
+                  Open document
+                </a>
+              </div>
             </div>
             <div className="mini-actions">
               <Button onClick={() => approveMutation.mutate(verification._id)} type="button">

@@ -238,3 +238,11 @@ export type NotificationVM = {
 };
 
 export type AdminVerificationVM = VerificationRecord;
+export type AdminVerificationReview = VerificationRecord & {
+  reviewerContext?: {
+    phone?: string | null;
+    email?: string | null;
+    fullName?: string | null;
+    occupation?: string | null;
+  };
+};

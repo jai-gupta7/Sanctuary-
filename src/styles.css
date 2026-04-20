@@ -1201,8 +1201,28 @@ p {
   padding: 1.25rem;
 }
 
+.owner-review-card {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1.25rem;
+  border-radius: var(--radius-md);
+}
+
 .owner-applications-card .mini-listing {
   background: rgba(238, 244, 255, 0.68);
+}
+
+.archived-listing-card {
+  opacity: 0.9;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.96)),
+    white;
+}
+
+.archived-listing-card .listing-summary-top,
+.archived-listing-card p {
+  color: var(--muted);
 }
 
 .section-heading-row {
