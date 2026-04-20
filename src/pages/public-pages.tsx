@@ -143,7 +143,19 @@ export function ExplorePage() {
 
       {listingsQuery.isLoading ? <LoadingBlock label="Loading listings..." /> : null}
 
-      {listingsQuery.data?.items.length ? (
+      {listingsQuery.isError ? (
+        <EmptyState
+          title="We couldn't load listings right now"
+          copy="The marketplace is having trouble responding. Try again to refresh the latest listings."
+          action={
+            <Button onClick={() => void listingsQuery.refetch()} type="button">
+              Retry listings
+            </Button>
+          }
+        />
+      ) : null}
+
+      {!listingsQuery.isError && listingsQuery.data?.items.length ? (
         <div className="card-grid">
           {listingsQuery.data.items.map((listing) => (
             <ListingSummaryCard key={listing._id} listing={mapListingCard(listing)} />
@@ -151,7 +163,7 @@ export function ExplorePage() {
         </div>
       ) : null}
 
-      {!listingsQuery.isLoading && !listingsQuery.data?.items.length ? (
+      {!listingsQuery.isLoading && !listingsQuery.isError && !listingsQuery.data?.items.length ? (
         <EmptyState
           title="No listings match this filter yet"
           copy="Try a wider location or rent range. As more listers publish, the public marketplace will fill out here."
@@ -223,8 +235,37 @@ export function ListingDetailPage() {
     return <LoadingBlock label="Loading listing..." />;
   }
 
+  if (listingQuery.isError) {
+    return (
+      <EmptyState
+        title="We couldn't load this listing"
+        copy="The listing detail is unavailable right now. Try again or return to the marketplace."
+        action={
+          <div className="row-actions">
+            <Button onClick={() => void listingQuery.refetch()} type="button">
+              Retry listing
+            </Button>
+            <ButtonLink to="/explore" tone="secondary">
+              Back to explore
+            </ButtonLink>
+          </div>
+        }
+      />
+    );
+  }
+
   if (!listingQuery.data) {
-    return <EmptyState title="Listing not found" copy="This listing may have been removed or is no longer available." />;
+    return (
+      <EmptyState
+        title="Listing not found"
+        copy="This listing may have been removed or is no longer available."
+        action={
+          <ButtonLink to="/explore" tone="secondary">
+            Back to explore
+          </ButtonLink>
+        }
+      />
+    );
   }
 
   const listing = mapListingDetail(listingQuery.data);

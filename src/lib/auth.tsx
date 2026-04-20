@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (phone: string, otp: string) => {
       const result = await authApi.verifyOtp(phone, otp);
       setAuthTokens(result.tokens);
-      setPendingPhone(phone);
+      setPendingPhone("");
       const me = await usersApi.getMe();
       setCurrentUser(me);
       return me;
@@ -102,7 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     clearAuthTokens();
     setCurrentUser(null);
-  }, []);
+    setPendingPhone("");
+  }, [setPendingPhone]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

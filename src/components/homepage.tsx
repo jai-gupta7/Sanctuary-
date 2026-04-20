@@ -397,6 +397,9 @@ export function Homepage() {
         <Link className="button button-primary" to="/explore">
           Explore Listings
         </Link>
+        <Link className="button button-secondary" to="/auth/login">
+          Sign In
+        </Link>
       </div>
     </div>
   );

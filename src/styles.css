@@ -673,14 +673,15 @@ p {
   right: 0;
   bottom: 0;
   z-index: 20;
-  display: flex;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
   padding: 0.8rem 1rem 1rem;
   background: linear-gradient(180deg, rgba(243, 247, 255, 0), rgba(243, 247, 255, 0.96) 40%);
 }
 
 .mobile-cta .button {
-  width: min(32rem, 100%);
+  width: 100%;
 }
 
 .story-card:hover,

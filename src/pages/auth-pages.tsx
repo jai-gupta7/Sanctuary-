@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -20,7 +21,7 @@ type VerifyOtpValues = z.infer<typeof verifyOtpSchema>;
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { requestOtp, pendingPhone } = useAuth();
+  const { currentUser, isAuthenticated, isLoading, requestOtp, pendingPhone } = useAuth();
   const { pushToast } = useToast();
   const {
     register,
@@ -33,6 +34,11 @@ export function LoginPage() {
     }
   });
 
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) return;
+    void navigate(currentUser?.eligibility.eligible ? "/dashboard" : "/profile", { replace: true });
+  }, [currentUser?.eligibility.eligible, isAuthenticated, isLoading, navigate]);
+
   return (
     <div className="auth-page">
       <Card className="auth-card">
@@ -41,6 +47,12 @@ export function LoginPage() {
           title="Sign in to Shared Living OS"
           description="Use your phone number to start the MVP flow. We’ll use OTP verification and then restore your account session."
         />
+
+        {pendingPhone ? (
+          <InlineNotice tone="info">
+            A recent OTP request is already saved in this browser. You can request a fresh code here or continue to verification.
+          </InlineNotice>
+        ) : null}
 
         <form
           className="form-grid"
@@ -70,6 +82,11 @@ export function LoginPage() {
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? "Sending OTP..." : "Request OTP"}
             </Button>
+            {pendingPhone ? (
+              <ButtonLink to="/auth/verify" tone="tertiary">
+                Continue verification
+              </ButtonLink>
+            ) : null}
             <ButtonLink to="/explore" tone="secondary">
               Explore first
             </ButtonLink>
@@ -82,7 +99,7 @@ export function LoginPage() {
 
 export function VerifyPage() {
   const navigate = useNavigate();
-  const { pendingPhone, requestOtp, verifyOtp } = useAuth();
+  const { currentUser, isAuthenticated, isLoading, pendingPhone, requestOtp, setPendingPhone, verifyOtp } = useAuth();
   const { pushToast } = useToast();
   const {
     register,
@@ -91,6 +108,11 @@ export function VerifyPage() {
   } = useForm<VerifyOtpValues>({
     resolver: zodResolver(verifyOtpSchema)
   });
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) return;
+    void navigate(currentUser?.eligibility.eligible ? "/dashboard" : "/profile", { replace: true });
+  }, [currentUser?.eligibility.eligible, isAuthenticated, isLoading, navigate]);
 
   return (
     <div className="auth-page">
@@ -136,6 +158,16 @@ export function VerifyPage() {
           <div className="row-actions">
             <Button type="submit" disabled={isSubmitting || !pendingPhone}>
               {isSubmitting ? "Verifying..." : "Verify OTP"}
+            </Button>
+            <Button
+              tone="tertiary"
+              type="button"
+              onClick={() => {
+                setPendingPhone("");
+                void navigate("/auth/login");
+              }}
+            >
+              Change number
             </Button>
             <Button
               tone="secondary"
