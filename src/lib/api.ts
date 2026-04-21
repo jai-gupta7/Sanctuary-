@@ -350,10 +350,11 @@ export const applicationsApi = {
       method: "POST",
       auth: true
     }),
-  reject: (id: string) =>
+  reject: (id: string, reason: string) =>
     apiFetch<ListingApplication>(`/applications/${id}/reject`, {
       method: "POST",
-      auth: true
+      auth: true,
+      body: JSON.stringify({ reason })
     })
 };
 

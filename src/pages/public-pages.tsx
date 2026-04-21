@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { Homepage } from "../components/homepage";
-import { Badge, Button, ButtonLink, Card, EmptyState, Field, InlineNotice, Input, LoadingBlock, PageHeader, Textarea } from "../components/ui";
+import { MapPreview } from "../components/map-preview";
+import { Badge, Button, ButtonLink, Card, EmptyState, Field, InlineNotice, Input, LoadingBlock, Modal, PageHeader, Textarea } from "../components/ui";
 import { applicationsApi, conversationsApi, listingsApi } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
@@ -23,6 +24,20 @@ function formatDate(value: string) {
     month: "short",
     year: "numeric"
   }).format(new Date(value));
+}
+
+function applicationStatusTone(status: ApplicationVM["status"]) {
+  if (status === "accepted") return "success";
+  if (status === "shortlisted") return "primary";
+  if (status === "rejected") return "danger";
+  return "neutral";
+}
+
+function applicationNoticeTone(status: ApplicationVM["status"]) {
+  if (status === "accepted") return "success";
+  if (status === "shortlisted") return "info";
+  if (status === "rejected") return "danger";
+  return "info";
 }
 
 function mapListingCard(listing: ListingCardVM | any): ListingCardVM {
@@ -60,7 +75,14 @@ function mapListingDetail(data: ListingDetailPayload): ListingDetailVM {
     listerBio: data.listerProfile?.bio,
     listerVerified: data.listerVerificationStatus === "verified",
     preferences,
-    isOwner: Boolean(data.viewerContext?.isOwner)
+    isOwner: Boolean(data.viewerContext?.isOwner),
+    listerPhone: data.listerContact?.phone,
+    listerEmail: data.listerContact?.email,
+    exactAddress: data.listerContact?.exactAddress ?? null,
+    navigationUrl: data.listerContact?.navigationUrl ?? null,
+    latitude: data.listing.latitude,
+    longitude: data.listing.longitude,
+    hasAcceptedAccess: Boolean(data.viewerContext?.hasAcceptedAccess)
   };
 }
 
@@ -115,6 +137,7 @@ export function HomePage() {
 }
 
 export function ExplorePage() {
+  const { isAuthenticated, currentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [location, setLocation] = useState(searchParams.get("location") ?? "");
   const [minRent, setMinRent] = useState(searchParams.get("minRent") ?? "");
@@ -136,16 +159,24 @@ export function ExplorePage() {
   });
 
   const listingCount = listingsQuery.data?.items.length ?? 0;
+  const heroEyebrow = isAuthenticated ? "Marketplace workspace" : "Public marketplace";
+  const heroCopy = isAuthenticated
+    ? "Explore active listings as part of your live product workflow. Compare trust signals, pricing, and next steps without leaving the app shell."
+    : "Browse active shared-living options with trust-first context, clean pricing, and a smoother path from discovery to conversation.";
+  const helperCopy = isAuthenticated
+    ? "Best for: comparing live options while you actively manage applications and chats."
+    : "Best for: browsing active listings before you commit to onboarding.";
+  const helperTip = isAuthenticated
+    ? "Tip: open a listing to review trust context, accepted access, and the next action available to you."
+    : "Tip: open a listing to review pricing, preferences, and lister context together.";
 
   return (
     <div className="page-shell">
       <section className="marketplace-hero">
         <div className="marketplace-hero-copy">
-          <span className="section-tag">Public marketplace</span>
+          <span className="section-tag">{heroEyebrow}</span>
           <h1 className="page-title marketplace-title">Explore listings</h1>
-          <p className="page-description">
-            Browse active shared-living options with trust-first context, clean pricing, and a smoother path from discovery to conversation.
-          </p>
+          <p className="page-description">{heroCopy}</p>
         </div>
         <div className="marketplace-hero-panel">
           <div className="marketplace-stat-grid">
@@ -158,7 +189,13 @@ export function ExplorePage() {
               <strong>Trust first</strong>
             </article>
           </div>
-          <ButtonLink to="/auth/login">Sign in to interact</ButtonLink>
+          {isAuthenticated ? (
+            <ButtonLink to={currentUser?.user.role === "admin" ? "/admin/listings" : "/my-listings"}>
+              {currentUser?.user.role === "admin" ? "Review listings" : "Manage my listings"}
+            </ButtonLink>
+          ) : (
+            <ButtonLink to="/auth/login">Sign in to interact</ButtonLink>
+          )}
         </div>
       </section>
 
@@ -184,8 +221,8 @@ export function ExplorePage() {
           </div>
         </form>
         <div className="filter-helper-row">
-          <span>Best for: browsing active listings before you commit to onboarding.</span>
-          <span>Tip: open a listing to review pricing, preferences, and lister context together.</span>
+          <span>{helperCopy}</span>
+          <span>{helperTip}</span>
         </div>
       </Card>
 
@@ -228,6 +265,11 @@ export function ListingDetailPage() {
   const { isAuthenticated, currentUser } = useAuth();
   const { pushToast } = useToast();
   const [applicationMessage, setApplicationMessage] = useState("");
+  const [rejectModalState, setRejectModalState] = useState<{
+    applicationId: string;
+    prompt: string;
+  } | null>(null);
+  const [rejectionReasonDraft, setRejectionReasonDraft] = useState("");
 
   const listingQuery = useQuery({
     queryKey: ["listing", id, isAuthenticated],
@@ -274,13 +316,26 @@ export function ListingDetailPage() {
   });
 
   const applicationStatusMutation = useMutation({
-    mutationFn: ({ applicationId, nextStatus }: { applicationId: string; nextStatus: ApplicationVM["status"] }) => {
+    mutationFn: ({
+      applicationId,
+      nextStatus,
+      rejectionReason
+    }: {
+      applicationId: string;
+      nextStatus: ApplicationVM["status"];
+      rejectionReason?: string;
+    }) => {
       if (nextStatus === "shortlisted") return applicationsApi.shortlist(applicationId);
       if (nextStatus === "accepted") return applicationsApi.accept(applicationId);
-      return applicationsApi.reject(applicationId);
+      if (!rejectionReason?.trim()) {
+        throw new Error("Add a short reason before rejecting this application.");
+      }
+      return applicationsApi.reject(applicationId, rejectionReason);
     },
     onSuccess: () => {
       pushToast("Application status updated.", "success");
+      setRejectModalState(null);
+      setRejectionReasonDraft("");
       void queryClient.invalidateQueries({ queryKey: ["listing-applications", id] });
     },
     onError: (error) => {
@@ -329,10 +384,63 @@ export function ListingDetailPage() {
   const primaryImage = listing.images[0];
   const secondaryImages = listing.images.slice(1);
   const trimmedApplicationMessage = applicationMessage.trim();
+  const trimmedRejectionReason = rejectionReasonDraft.trim();
   const existingApplication = myApplicationsQuery.data?.find((application) => application.listingId === id);
 
   return (
     <div className="page-shell">
+      <Modal
+        open={Boolean(rejectModalState)}
+        title="Reject application"
+        onClose={() => {
+          if (applicationStatusMutation.isPending) return;
+          setRejectModalState(null);
+          setRejectionReasonDraft("");
+        }}
+      >
+        <div className="stack-list rejection-modal-content">
+          <InlineNotice tone="warning">
+            Record a clear reason so the applicant understands the outcome and your review history stays useful.
+          </InlineNotice>
+          <Field label="Reason for rejection" hint={rejectModalState?.prompt}>
+            <Textarea
+              rows={4}
+              placeholder="Example: We’re prioritizing applicants who can move in this week."
+              value={rejectionReasonDraft}
+              onChange={(event) => setRejectionReasonDraft(event.target.value)}
+            />
+          </Field>
+          <div className="row-actions">
+            <Button
+              tone="danger"
+              type="button"
+              disabled={applicationStatusMutation.isPending || trimmedRejectionReason.length < 5 || !rejectModalState}
+              onClick={() => {
+                if (!rejectModalState) return;
+                applicationStatusMutation.mutate({
+                  applicationId: rejectModalState.applicationId,
+                  nextStatus: "rejected",
+                  rejectionReason: trimmedRejectionReason
+                });
+              }}
+            >
+              {applicationStatusMutation.isPending ? "Rejecting..." : "Confirm rejection"}
+            </Button>
+            <Button
+              tone="secondary"
+              type="button"
+              disabled={applicationStatusMutation.isPending}
+              onClick={() => {
+                setRejectModalState(null);
+                setRejectionReasonDraft("");
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <section className="listing-detail-hero">
         <div className="listing-detail-copy">
           <div className="listing-detail-badges">
@@ -385,20 +493,88 @@ export function ListingDetailPage() {
               {ownerApplicationsQuery.data.map((application) => (
                 <div key={application._id} className="mini-listing">
                   <div>
-                    <strong>Applicant {application.applicantId.slice(-6)}</strong>
+                    <strong>{application.applicantContact?.fullName || `Applicant ${application.applicantId.slice(-6)}`}</strong>
                     <p>{application.message || "No intro message shared."}</p>
-                    <Badge tone="neutral">{application.status}</Badge>
+                    <Badge tone={applicationStatusTone(application.status)}>{application.status}</Badge>
+                    {application.status === "accepted" ? (
+                      <div className="stack-list">
+                        <p>{application.applicantContact?.phone ? `Phone: ${application.applicantContact.phone}` : "Phone not added yet"}</p>
+                        <p>{application.applicantContact?.email ? `Email: ${application.applicantContact.email}` : "Email not added yet"}</p>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="mini-actions">
-                    <Button tone="secondary" onClick={() => applicationStatusMutation.mutate({ applicationId: application._id, nextStatus: "shortlisted" })} type="button">
-                      Shortlist
-                    </Button>
-                    <Button onClick={() => applicationStatusMutation.mutate({ applicationId: application._id, nextStatus: "accepted" })} type="button">
-                      Accept
-                    </Button>
-                    <Button tone="danger" onClick={() => applicationStatusMutation.mutate({ applicationId: application._id, nextStatus: "rejected" })} type="button">
-                      Reject
-                    </Button>
+                    {application.status === "applied" ? (
+                      <>
+                        <Button tone="secondary" onClick={() => applicationStatusMutation.mutate({ applicationId: application._id, nextStatus: "shortlisted" })} type="button">
+                          Shortlist
+                        </Button>
+                        <Button onClick={() => applicationStatusMutation.mutate({ applicationId: application._id, nextStatus: "accepted" })} type="button">
+                          Accept
+                        </Button>
+                        <Button
+                          tone="danger"
+                          onClick={() => {
+                            setRejectModalState({
+                              applicationId: application._id,
+                              prompt: "Share why this applicant is not moving forward."
+                            });
+                            setRejectionReasonDraft("");
+                          }}
+                          type="button"
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    ) : null}
+                    {application.status === "shortlisted" ? (
+                      <>
+                        <Button onClick={() => applicationStatusMutation.mutate({ applicationId: application._id, nextStatus: "accepted" })} type="button">
+                          Accept
+                        </Button>
+                        <Button
+                          tone="danger"
+                          onClick={() => {
+                            setRejectModalState({
+                              applicationId: application._id,
+                              prompt: "Share why this shortlisted applicant is no longer moving forward."
+                            });
+                            setRejectionReasonDraft("");
+                          }}
+                          type="button"
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    ) : null}
+                    {application.status === "accepted" ? (
+                      <>
+                        {application.applicantContact?.phone ? (
+                          <a className="button button-secondary" href={`tel:${application.applicantContact.phone}`}>
+                            Call applicant
+                          </a>
+                        ) : null}
+                        {application.applicantContact?.email ? (
+                          <a className="button button-secondary" href={`mailto:${application.applicantContact.email}`}>
+                            Email applicant
+                          </a>
+                        ) : null}
+                        <Button
+                          tone="secondary"
+                          disabled={createConversationMutation.isPending}
+                          onClick={() => createConversationMutation.mutate(application.applicantId)}
+                          type="button"
+                        >
+                          Continue in chat
+                        </Button>
+                      </>
+                    ) : null}
+                    {application.status === "rejected" ? (
+                      <div className="stack-list">
+                        <span>Decision recorded</span>
+                        <p>{application.rejectionReason ? `Reason: ${application.rejectionReason}` : "No rejection reason recorded."}</p>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               ))}
@@ -491,29 +667,72 @@ export function ListingDetailPage() {
                 </>
               ) : existingApplication ? (
                 <>
-                  <InlineNotice tone="success">
-                    You already applied to this listing. Track progress and next steps from your applications workspace.
+                  <InlineNotice tone={applicationNoticeTone(existingApplication.status)}>
+                    {existingApplication.status === "accepted"
+                      ? "Your request was accepted. Continue with the lister in chat or review the accepted application details."
+                      : existingApplication.status === "shortlisted"
+                        ? "The lister shortlisted your request. Stay responsive and keep the conversation active."
+                        : existingApplication.status === "rejected"
+                          ? "This request was declined. Review your application history and explore other listings."
+                          : "You already applied to this listing. Track progress and next steps from your applications workspace."}
                   </InlineNotice>
                   <div className="stack-list">
                     <div className="mini-listing">
                       <div>
                         <strong>Application status</strong>
                         <p>{existingApplication.message || "Your intro was submitted successfully."}</p>
-                        <Badge tone="primary">{existingApplication.status}</Badge>
+                        <Badge tone={applicationStatusTone(existingApplication.status)}>{existingApplication.status}</Badge>
+                        {existingApplication.status === "rejected" ? (
+                          <p>{existingApplication.rejectionReason ? `Reason: ${existingApplication.rejectionReason}` : "No rejection reason shared yet."}</p>
+                        ) : null}
                       </div>
                     </div>
                   </div>
                   <div className="stack-actions">
-                    <ButtonLink to="/applications">View my application</ButtonLink>
-                    <Button
-                      tone="secondary"
-                      disabled={!currentUser?.eligibility.eligible || createConversationMutation.isPending}
-                      onClick={() => createConversationMutation.mutate(listingQuery.data.listing.createdBy)}
-                      type="button"
-                    >
-                      Start chat
-                    </Button>
+                    {existingApplication.status !== "accepted" ? (
+                      <ButtonLink to="/applications">View my application</ButtonLink>
+                    ) : null}
+                    {existingApplication.status !== "rejected" ? (
+                      <Button
+                        tone="secondary"
+                        disabled={!currentUser?.eligibility.eligible || createConversationMutation.isPending}
+                        onClick={() => createConversationMutation.mutate(listingQuery.data.listing.createdBy)}
+                        type="button"
+                      >
+                        {existingApplication.status === "accepted" ? "Continue in chat" : "Start chat"}
+                      </Button>
+                    ) : null}
                   </div>
+                  {existingApplication.status === "accepted" && listing.hasAcceptedAccess ? (
+                    <div className="stack-list">
+                      <div className="mini-listing">
+                        <div>
+                          <strong>Owner contact unlocked</strong>
+                          <p>{listing.listerPhone ? `Phone: ${listing.listerPhone}` : "Phone not added yet"}</p>
+                          <p>{listing.listerEmail ? `Email: ${listing.listerEmail}` : "Email not added yet"}</p>
+                          <p>{listing.exactAddress ? `Property address: ${listing.exactAddress}` : "Property address not added yet"}</p>
+                        </div>
+                        <MapPreview latitude={listing.latitude} longitude={listing.longitude} label="Property map view" />
+                        <div className="mini-actions">
+                          {listing.listerPhone ? (
+                            <a className="button button-secondary" href={`tel:${listing.listerPhone}`}>
+                              Call owner
+                            </a>
+                          ) : null}
+                          {listing.listerEmail ? (
+                            <a className="button button-secondary" href={`mailto:${listing.listerEmail}`}>
+                              Email owner
+                            </a>
+                          ) : null}
+                          {listing.navigationUrl ? (
+                            <a className="button" href={listing.navigationUrl} target="_blank" rel="noreferrer">
+                              Navigate to property
+                            </a>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <>

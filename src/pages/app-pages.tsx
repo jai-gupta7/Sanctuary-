@@ -5,6 +5,8 @@ import { useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 
+import { MapPicker } from "../components/map-picker";
+import { MapPreview } from "../components/map-preview";
 import { Button, ButtonLink, Card, EmptyState, Field, InlineNotice, Input, LoadingBlock, PageHeader, Select, Stat, Textarea } from "../components/ui";
 import { adminApi, applicationsApi, conversationsApi, listingsApi, notificationsApi, uploadsApi, usersApi, verificationApi } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -18,6 +20,30 @@ function formatCurrency(value: number) {
 function formatDate(value?: string) {
   if (!value) return "Not available";
   return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return "Just now";
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+function applicationStatusTone(status: "applied" | "shortlisted" | "accepted" | "rejected") {
+  if (status === "accepted") return "success";
+  if (status === "shortlisted") return "primary";
+  if (status === "rejected") return "danger";
+  return "neutral";
+}
+
+function applicationNoticeTone(status: "applied" | "shortlisted" | "accepted" | "rejected") {
+  if (status === "accepted") return "success";
+  if (status === "shortlisted") return "info";
+  if (status === "rejected") return "danger";
+  return "info";
 }
 
 function reasonPrompt(label: string) {
@@ -41,6 +67,10 @@ const listingSchema = z.object({
   rent: z.number().min(0),
   deposit: z.number().min(0),
   locationText: z.string().min(2),
+  exactAddress: z.string().min(5, "Enter the property address").optional().or(z.literal("")),
+  googleMapsUrl: z.string().url("Enter a valid Google Maps link").optional().or(z.literal("")),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
   moveInDate: z.string().min(1),
   status: z.enum(["draft", "active", "paused", "filled", "archived"]),
   genderPreference: z.string().optional(),
@@ -542,6 +572,7 @@ export function ListingEditorPage() {
   const { currentUser } = useAuth();
   const { pushToast } = useToast();
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
 
   const listingQuery = useQuery({
     queryKey: ["listing-editor", id],
@@ -549,11 +580,10 @@ export function ListingEditorPage() {
     enabled: Boolean(id)
   });
 
-  const existingImageUrls = listingQuery.data?.images.map((image) => image.imageUrl) ?? [];
-
   const {
     register,
     handleSubmit,
+    setValue,
     watch,
     reset,
     formState: { errors, isSubmitting }
@@ -566,6 +596,10 @@ export function ListingEditorPage() {
       rent: 0,
       deposit: 0,
       locationText: "",
+      exactAddress: "",
+      googleMapsUrl: "",
+      latitude: undefined,
+      longitude: undefined,
       moveInDate: "",
       status: "draft",
       genderPreference: "",
@@ -578,6 +612,8 @@ export function ListingEditorPage() {
   useEffect(() => {
     if (!listingQuery.data) return;
 
+    setExistingImageUrls(listingQuery.data.images.map((image) => image.imageUrl));
+
     reset({
       listingType: listingQuery.data.listing.listingType,
       title: listingQuery.data.listing.title,
@@ -585,6 +621,10 @@ export function ListingEditorPage() {
       rent: listingQuery.data.listing.rent,
       deposit: listingQuery.data.listing.deposit,
       locationText: listingQuery.data.listing.locationText,
+      exactAddress: listingQuery.data.listing.exactAddress ?? "",
+      googleMapsUrl: listingQuery.data.listing.googleMapsUrl ?? "",
+      latitude: listingQuery.data.listing.latitude,
+      longitude: listingQuery.data.listing.longitude,
       moveInDate: listingQuery.data.listing.moveInDate.slice(0, 10),
       status: listingQuery.data.listing.status,
       genderPreference: listingQuery.data.preference?.genderPreference ?? "",
@@ -595,7 +635,9 @@ export function ListingEditorPage() {
   }, [listingQuery.data, reset]);
 
   const selectedStatus = watch("status");
-  const prospectiveImageCount = imageFiles.length || existingImageUrls.length;
+  const prospectiveImageCount = existingImageUrls.length + imageFiles.length;
+  const selectedLatitude = watch("latitude");
+  const selectedLongitude = watch("longitude");
 
   return (
     <div className="page-shell">
@@ -622,12 +664,12 @@ export function ListingEditorPage() {
               const uploadedImageUrls =
                 imageFiles.length > 0
                   ? await Promise.all(imageFiles.map((file) => uploadsApi.uploadFile(file, "listing_image", "listing", id)))
-                  : existingImageUrls;
+                  : [];
 
               const payload = {
                 ...values,
                 moveInDate: values.moveInDate,
-                imageUrls: uploadedImageUrls
+                imageUrls: [...existingImageUrls, ...uploadedImageUrls]
               };
 
               if (id) {
@@ -667,6 +709,31 @@ export function ListingEditorPage() {
           <Field label="Location" error={errors.locationText?.message}>
             <Input {...register("locationText")} />
           </Field>
+          <Field label="Exact property address" error={errors.exactAddress?.message}>
+            <Input placeholder="Flat number, building, street, locality" {...register("exactAddress")} />
+          </Field>
+          <Field label="Google Maps link" error={errors.googleMapsUrl?.message}>
+            <Input placeholder="https://maps.google.com/..." {...register("googleMapsUrl")} />
+          </Field>
+          <Field label="Map pin">
+            <MapPicker
+              latitude={selectedLatitude}
+              longitude={selectedLongitude}
+              onChange={({ latitude, longitude, locationText, exactAddress, googleMapsUrl }) => {
+                setValue("latitude", latitude, { shouldDirty: true, shouldValidate: true });
+                setValue("longitude", longitude, { shouldDirty: true, shouldValidate: true });
+                if (locationText) {
+                  setValue("locationText", locationText, { shouldDirty: true, shouldValidate: true });
+                }
+                if (exactAddress) {
+                  setValue("exactAddress", exactAddress, { shouldDirty: true, shouldValidate: true });
+                }
+                if (googleMapsUrl) {
+                  setValue("googleMapsUrl", googleMapsUrl, { shouldDirty: true, shouldValidate: true });
+                }
+              }}
+            />
+          </Field>
           <Field label="Move-in date" error={errors.moveInDate?.message}>
             <Input type="date" {...register("moveInDate")} />
           </Field>
@@ -686,7 +753,55 @@ export function ListingEditorPage() {
             <Input placeholder="Working professional, student..." {...register("occupationPreference")} />
           </Field>
           <Field label="Listing images">
-            <Input type="file" accept="image/*" multiple onChange={(event) => setImageFiles(Array.from(event.target.files ?? []))} />
+            <Input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(event) => setImageFiles(Array.from(event.target.files ?? []))}
+            />
+            {existingImageUrls.length ? (
+              <div className="editor-image-grid">
+                {existingImageUrls.map((imageUrl, index) => (
+                  <div key={imageUrl} className="editor-image-card">
+                    <div className="editor-image-frame">
+                      <img alt={`Existing listing image ${index + 1}`} src={imageUrl} />
+                    </div>
+                    <div className="mini-actions">
+                      <span>Current image {index + 1}</span>
+                      <Button
+                        tone="danger"
+                        type="button"
+                        onClick={() => setExistingImageUrls((current) => current.filter((url) => url !== imageUrl))}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {imageFiles.length ? (
+              <div className="editor-image-grid">
+                {imageFiles.map((file, index) => (
+                  <div key={`${file.name}-${index}`} className="editor-image-card editor-image-card-pending">
+                    <div className="editor-image-meta">
+                      <strong>{file.name}</strong>
+                      <span>Will upload on save</span>
+                    </div>
+                    <div className="mini-actions">
+                      <span>New image {index + 1}</span>
+                      <Button
+                        tone="secondary"
+                        type="button"
+                        onClick={() => setImageFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </Field>
           <div className="row-actions">
             <Button type="submit" disabled={isSubmitting}>
@@ -723,12 +838,58 @@ export function ApplicationsPage() {
           {applicationsQuery.data.map((application) => (
             <Card key={application._id} className="mini-listing">
               <div>
-                <strong>Listing {application.listingId.slice(-6)}</strong>
+                <strong>{application.listingTitle || `Listing ${application.listingId.slice(-6)}`}</strong>
                 <p>{application.message || "No intro message attached."}</p>
+                {application.status === "accepted" ? (
+                  <div className="stack-list">
+                    <strong>Owner contact</strong>
+                    <p>{application.ownerContact?.fullName ? `Owner: ${application.ownerContact.fullName}` : "Owner name not available yet"}</p>
+                    <p>{application.ownerContact?.phone ? `Phone: ${application.ownerContact.phone}` : "Phone not added yet"}</p>
+                    <p>{application.ownerContact?.email ? `Email: ${application.ownerContact.email}` : "Email not added yet"}</p>
+                    <p>{application.ownerContact?.exactAddress ? `Property address: ${application.ownerContact.exactAddress}` : "Property address not added yet"}</p>
+                  </div>
+                ) : null}
+                {application.status === "rejected" ? (
+                  <div className="stack-list">
+                    <strong>Owner feedback</strong>
+                    <p>{application.rejectionReason || "No rejection reason shared yet."}</p>
+                  </div>
+                ) : null}
+                <InlineNotice tone={applicationNoticeTone(application.status)}>
+                  {application.status === "accepted"
+                    ? "The owner accepted your request. Their contact details are now unlocked below."
+                    : application.status === "shortlisted"
+                      ? "You are shortlisted. Stay active in chat and keep an eye on follow-ups."
+                      : application.status === "rejected"
+                        ? "This request was declined. You can explore other listings and apply again elsewhere."
+                        : "Your application is in the owner's review queue."}
+                </InlineNotice>
               </div>
               <div>
                 <span>{application.status}</span>
                 <p>{formatDate(application.createdAt)}</p>
+                <div className="mini-actions">
+                  {application.status === "accepted" && application.ownerContact?.phone ? (
+                    <a className="button button-secondary" href={`tel:${application.ownerContact.phone}`}>
+                      Call owner
+                    </a>
+                  ) : null}
+                  {application.status === "accepted" && application.ownerContact?.email ? (
+                    <a className="button button-secondary" href={`mailto:${application.ownerContact.email}`}>
+                      Email owner
+                    </a>
+                  ) : null}
+                  <ButtonLink to={`/listings/${application.listingId}`} tone="secondary">
+                    {application.status === "accepted" ? "Open property handoff" : "View listing"}
+                  </ButtonLink>
+                </div>
+                {application.status === "accepted" ? (
+                  <MapPreview
+                    latitude={application.ownerContact?.latitude}
+                    longitude={application.ownerContact?.longitude}
+                    label="Property map view"
+                  />
+                ) : null}
               </div>
             </Card>
           ))}
@@ -764,8 +925,19 @@ export function ConversationsPage() {
           {conversationsQuery.data.map((conversation) => (
             <Card key={conversation._id} className="mini-listing">
               <div>
-                <strong>Conversation {conversation._id.slice(-6)}</strong>
-                <p>Updated {formatDate(conversation.updatedAt)}</p>
+                <div className="section-heading-row">
+                  <strong>{conversation.participant?.fullName || conversation.participant?.phone || `Conversation ${conversation._id.slice(-6)}`}</strong>
+                  {conversation.unread ? <span>Unread</span> : null}
+                </div>
+                <p>
+                  {conversation.latestMessage?.message
+                    ? `"${conversation.latestMessage.message}"`
+                    : "No messages yet. Open the thread to start the conversation."}
+                </p>
+                <p>
+                  {conversation.participant?.occupation ? `${conversation.participant.occupation} · ` : ""}
+                  Updated {formatDateTime(conversation.latestMessage?.createdAt || conversation.updatedAt)}
+                </p>
               </div>
               <ButtonLink to={`/conversations/${conversation._id}`} tone="secondary">
                 Open thread
@@ -788,12 +960,23 @@ export function ConversationDetailPage() {
   const { currentUser } = useAuth();
   const { pushToast } = useToast();
   const [message, setMessage] = useState("");
+  const conversationsQuery = useQuery({
+    queryKey: ["conversations"],
+    queryFn: () => conversationsApi.list(),
+    refetchInterval: 8000
+  });
   const messagesQuery = useQuery({
     queryKey: ["conversation-messages", id],
     queryFn: () => conversationsApi.getMessages(id),
     enabled: Boolean(id),
     refetchInterval: 5000
   });
+
+  const conversation = conversationsQuery.data?.find((item) => item._id === id);
+  const conversationTitle = conversation?.participant?.fullName || conversation?.participant?.phone || `Conversation ${id.slice(-6)}`;
+  const conversationDescription = conversation?.participant?.occupation
+    ? `Conversation with ${conversationTitle}. ${conversation.participant.occupation} · REST polling refreshes new messages every few seconds.`
+    : `Conversation with ${conversationTitle}. REST polling refreshes new messages every few seconds.`;
 
   useEffect(() => {
     const lastMessageId = messagesQuery.data?.items[messagesQuery.data.items.length - 1]?._id;
@@ -818,8 +1001,8 @@ export function ConversationDetailPage() {
     <div className="page-shell">
       <PageHeader
         eyebrow="Conversation thread"
-        title={`Conversation ${id.slice(-6)}`}
-        description="REST polling is active on this thread. New messages refresh every few seconds."
+        title={conversationTitle}
+        description={conversationDescription}
       />
 
       <Card className="chat-card">

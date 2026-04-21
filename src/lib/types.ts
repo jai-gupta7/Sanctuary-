@@ -65,6 +65,8 @@ export type ListingRecord = {
   rent: number;
   deposit: number;
   locationText: string;
+  exactAddress?: string;
+  googleMapsUrl?: string;
   latitude?: number;
   longitude?: number;
   moveInDate: string;
@@ -98,8 +100,15 @@ export type ListingDetailPayload = {
   preference: ListingPreference | null;
   listerProfile: UserProfile | null;
   listerVerificationStatus: "verified" | "not_verified";
+  listerContact?: {
+    phone?: string | null;
+    email?: string | null;
+    exactAddress?: string | null;
+    navigationUrl: string;
+  } | null;
   viewerContext?: {
     isOwner: boolean;
+    hasAcceptedAccess?: boolean;
   };
 };
 
@@ -119,14 +128,43 @@ export type ListingApplication = {
   applicantId: string;
   status: "applied" | "shortlisted" | "accepted" | "rejected";
   message?: string;
+  rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
+  listingTitle?: string | null;
+  ownerContact?: {
+    fullName?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    exactAddress?: string | null;
+    navigationUrl?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  } | null;
+  applicantContact?: {
+    fullName?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  } | null;
 };
 
 export type ConversationRecord = {
   _id: string;
   createdAt: string;
   updatedAt: string;
+  participant?: {
+    userId: string;
+    fullName?: string | null;
+    phone?: string | null;
+    occupation?: string | null;
+    profileImageUrl?: string | null;
+  } | null;
+  latestMessage?: {
+    message: string;
+    senderId: string;
+    createdAt: string;
+  } | null;
+  unread?: boolean;
 };
 
 export type MessageRecord = {
@@ -212,6 +250,13 @@ export type ListingDetailVM = {
   listerVerified: boolean;
   preferences: string[];
   isOwner: boolean;
+  listerPhone?: string | null;
+  listerEmail?: string | null;
+  exactAddress?: string | null;
+  navigationUrl?: string | null;
+  latitude?: number;
+  longitude?: number;
+  hasAcceptedAccess: boolean;
 };
 
 export type ApplicationVM = {
@@ -220,12 +265,18 @@ export type ApplicationVM = {
   applicantId: string;
   status: ListingApplication["status"];
   message?: string;
+  rejectionReason?: string;
   createdAt: string;
 };
 
 export type ConversationVM = {
   id: string;
   updatedAt: string;
+  participantName?: string;
+  participantPhone?: string;
+  latestMessage?: string;
+  latestMessageAt?: string;
+  unread?: boolean;
 };
 
 export type NotificationVM = {
