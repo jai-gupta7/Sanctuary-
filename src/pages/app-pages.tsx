@@ -2,12 +2,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 
 import { MapPicker } from "../components/map-picker";
 import { MapPreview } from "../components/map-preview";
-import { Button, ButtonLink, Card, EmptyState, Field, InlineNotice, Input, LoadingBlock, PageHeader, Select, Stat, Textarea } from "../components/ui";
+import { Badge, Button, ButtonLink, Card, EmptyState, Field, InlineNotice, Input, LoadingBlock, Modal, PageHeader, Select, Stat, Tabs, Textarea } from "../components/ui";
 import { adminApi, applicationsApi, conversationsApi, listingsApi, notificationsApi, uploadsApi, usersApi, verificationApi } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useToast } from "../lib/toast";
@@ -48,6 +48,28 @@ function applicationNoticeTone(status: "applied" | "shortlisted" | "accepted" | 
 
 function reasonPrompt(label: string) {
   return window.prompt(label)?.trim() || "";
+}
+
+function AdminWorkspaceNav() {
+  const location = useLocation();
+  const items = [
+    { label: "Listings", to: "/admin/listings" },
+    { label: "Verifications", to: "/admin/verifications" },
+    { label: "Users", to: "/admin/users" }
+  ];
+
+  return (
+    <div className="admin-nav">
+      {items.map((item) => {
+        const isActive = location.pathname === item.to;
+        return (
+          <Link key={item.to} className={`admin-nav-link${isActive ? " admin-nav-link-active" : ""}`} to={item.to}>
+            {item.label}
+          </Link>
+        );
+      })}
+    </div>
+  );
 }
 
 const profileSchema = z.object({
@@ -1094,6 +1116,12 @@ export function NotificationsPage() {
 export function AdminUsersPage() {
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
+  const [userModerationModal, setUserModerationModal] = useState<{
+    id: string;
+    label: string;
+    action: "flag" | "deactivate";
+  } | null>(null);
+  const [userModerationReasonDraft, setUserModerationReasonDraft] = useState("");
   const usersQuery = useQuery({
     queryKey: ["admin-users"],
     queryFn: () => adminApi.users()
@@ -1103,7 +1131,20 @@ export function AdminUsersPage() {
     mutationFn: ({ id, reason }: { id: string; reason: string }) => adminApi.flagUser(id, reason),
     onSuccess: () => {
       pushToast("User flagged.", "success");
+      setUserModerationModal(null);
+      setUserModerationReasonDraft("");
       void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+    }
+  });
+
+  const unflagMutation = useMutation({
+    mutationFn: (id: string) => adminApi.unflagUser(id),
+    onSuccess: () => {
+      pushToast("User unflagged.", "success");
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+    onError: (error) => {
+      pushToast(error instanceof Error ? error.message : "Unable to unflag user", "error");
     }
   });
 
@@ -1111,43 +1152,140 @@ export function AdminUsersPage() {
     mutationFn: ({ id, reason }: { id: string; reason: string }) => adminApi.deactivateUser(id, reason),
     onSuccess: () => {
       pushToast("User deactivated.", "success");
+      setUserModerationModal(null);
+      setUserModerationReasonDraft("");
       void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
     }
   });
 
+  const isUserModerationPending = flagMutation.isPending || unflagMutation.isPending || deactivateMutation.isPending;
+
   return (
     <div className="page-shell">
+      <Modal
+        open={Boolean(userModerationModal)}
+        title={userModerationModal?.action === "deactivate" ? "Deactivate user" : "Flag user"}
+        onClose={() => {
+          if (isUserModerationPending) return;
+          setUserModerationModal(null);
+          setUserModerationReasonDraft("");
+        }}
+      >
+        <div className="stack-list rejection-modal-content">
+          <InlineNotice tone={userModerationModal?.action === "deactivate" ? "danger" : "warning"}>
+            {userModerationModal?.action === "deactivate"
+              ? "Deactivate only when the user should lose access to marketplace actions. Record a clear moderation reason."
+              : "Flag keeps the user active but marks the account for trust review. Record what triggered the flag."}
+          </InlineNotice>
+          <Field label="Moderation reason" hint={userModerationModal ? `User: ${userModerationModal.label}` : undefined}>
+            <Textarea
+              rows={4}
+              placeholder="Example: Suspicious profile details or repeated marketplace reports."
+              value={userModerationReasonDraft}
+              onChange={(event) => setUserModerationReasonDraft(event.target.value)}
+            />
+          </Field>
+          <div className="row-actions">
+            <Button
+              tone={userModerationModal?.action === "deactivate" ? "danger" : "secondary"}
+              type="button"
+              disabled={isUserModerationPending || userModerationReasonDraft.trim().length < 5 || !userModerationModal}
+              onClick={() => {
+                if (!userModerationModal) return;
+                const payload = {
+                  id: userModerationModal.id,
+                  reason: userModerationReasonDraft.trim()
+                };
+                if (userModerationModal.action === "deactivate") {
+                  deactivateMutation.mutate(payload);
+                  return;
+                }
+                flagMutation.mutate(payload);
+              }}
+            >
+              {isUserModerationPending
+                ? "Saving..."
+                : userModerationModal?.action === "deactivate"
+                  ? "Confirm deactivation"
+                  : "Confirm flag"}
+            </Button>
+            <Button
+              tone="secondary"
+              type="button"
+              disabled={isUserModerationPending}
+              onClick={() => {
+                setUserModerationModal(null);
+                setUserModerationReasonDraft("");
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
       <PageHeader eyebrow="Admin" title="Users" description="Trust operations for user review, flagging, and deactivation." />
+      <AdminWorkspaceNav />
       <div className="stack-list">
         {usersQuery.data?.map((user) => (
           <Card key={user._id} className="mini-listing">
             <div>
-              <strong>{user.phone}</strong>
+              <div className="section-heading-row">
+                <strong>{user.phone}</strong>
+                <div className="admin-listing-badges">
+                  <Badge tone={user.isActive === false ? "danger" : "success"}>
+                    {user.isActive === false ? "Inactive" : "Active"}
+                  </Badge>
+                  {user.isFlagged ? <Badge tone="warning">Flagged</Badge> : null}
+                </div>
+              </div>
               <p>{user.email || "No email added yet"}</p>
               <p>Role: {user.role}</p>
+              {user.flagReason ? (
+                <InlineNotice tone={user.isActive === false ? "danger" : "warning"}>
+                  Moderation note: {user.flagReason}
+                </InlineNotice>
+              ) : null}
             </div>
             <div className="mini-actions">
               <Button
                 tone="secondary"
+                disabled={isUserModerationPending}
                 onClick={() => {
-                  const reason = reasonPrompt("Reason for flagging this user");
-                  if (!reason) return;
-                  flagMutation.mutate({ id: user._id, reason });
+                  setUserModerationModal({
+                    id: user._id,
+                    label: user.email || user.phone,
+                    action: "flag"
+                  });
+                  setUserModerationReasonDraft("");
                 }}
                 type="button"
               >
-                Flag
+                {user.isFlagged ? "Update flag" : "Flag"}
               </Button>
+              {user.isFlagged ? (
+                <Button
+                  tone="secondary"
+                  disabled={isUserModerationPending}
+                  onClick={() => unflagMutation.mutate(user._id)}
+                  type="button"
+                >
+                  {unflagMutation.isPending ? "Unflagging..." : "Unflag"}
+                </Button>
+              ) : null}
               <Button
                 tone="danger"
+                disabled={isUserModerationPending || user.isActive === false}
                 onClick={() => {
-                  const reason = reasonPrompt("Reason for deactivating this user");
-                  if (!reason) return;
-                  deactivateMutation.mutate({ id: user._id, reason });
+                  setUserModerationModal({
+                    id: user._id,
+                    label: user.email || user.phone,
+                    action: "deactivate"
+                  });
+                  setUserModerationReasonDraft("");
                 }}
                 type="button"
               >
-                Deactivate
+                {user.isActive === false ? "Deactivated" : "Deactivate"}
               </Button>
             </div>
           </Card>
@@ -1160,6 +1298,13 @@ export function AdminUsersPage() {
 export function AdminListingsPage() {
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
+  const [listingFilter, setListingFilter] = useState<"active" | "paused" | "removed">("active");
+  const [moderationModal, setModerationModal] = useState<{
+    id: string;
+    title: string;
+    action: "pause" | "archive";
+  } | null>(null);
+  const [moderationReasonDraft, setModerationReasonDraft] = useState("");
   const listingsQuery = useQuery({
     queryKey: ["admin-listings"],
     queryFn: () => listingsApi.adminList()
@@ -1170,47 +1315,262 @@ export function AdminListingsPage() {
       action === "pause" ? listingsApi.pause(id, reason) : listingsApi.adminArchive(id, reason),
     onSuccess: () => {
       pushToast("Listing moderation saved.", "success");
+      setModerationModal(null);
+      setModerationReasonDraft("");
       void queryClient.invalidateQueries({ queryKey: ["admin-listings"] });
     }
   });
 
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => listingsApi.adminRestore(id),
+    onSuccess: () => {
+      pushToast("Listing restored to the marketplace review flow.", "success");
+      void queryClient.invalidateQueries({ queryKey: ["admin-listings"] });
+    }
+  });
+
+  const reliveMutation = useMutation({
+    mutationFn: (id: string) => listingsApi.adminRelive(id),
+    onSuccess: () => {
+      pushToast("Listing is live in the marketplace again.", "success");
+      void queryClient.invalidateQueries({ queryKey: ["admin-listings"] });
+      void queryClient.invalidateQueries({ queryKey: ["listings"] });
+    }
+  });
+
+  const filteredListings =
+    listingsQuery.data?.filter((listing) => {
+      if (listingFilter === "removed") return listing.isDeleted || listing.status === "archived";
+      if (listingFilter === "paused") return listing.status === "paused" && !listing.isDeleted;
+      return listing.status === "active" && !listing.isDeleted;
+    }) ?? [];
+
+  const activeCount = listingsQuery.data?.filter((listing) => listing.status === "active" && !listing.isDeleted).length ?? 0;
+  const pausedCount = listingsQuery.data?.filter((listing) => listing.status === "paused" && !listing.isDeleted).length ?? 0;
+  const removedCount = listingsQuery.data?.filter((listing) => listing.isDeleted || listing.status === "archived").length ?? 0;
+
   return (
     <div className="page-shell">
-      <PageHeader eyebrow="Admin" title="Listings" description="Pause or archive problematic listings without deleting operational history." />
+      <Modal
+        open={Boolean(moderationModal)}
+        title={moderationModal?.action === "archive" ? "Remove from marketplace" : "Pause listing"}
+        onClose={() => {
+          if (moderateMutation.isPending) return;
+          setModerationModal(null);
+          setModerationReasonDraft("");
+        }}
+      >
+        <div className="stack-list rejection-modal-content">
+          <InlineNotice tone={moderationModal?.action === "archive" ? "danger" : "warning"}>
+            {moderationModal?.action === "archive"
+              ? "Removing from marketplace hides the listing from live operations while preserving moderation history. Record a clear reason first."
+              : "Pause temporarily removes the listing from live discovery. Record why you are pausing it."}
+          </InlineNotice>
+          <Field label="Moderation reason" hint={moderationModal ? `Listing: ${moderationModal.title}` : undefined}>
+            <Textarea
+              rows={4}
+              placeholder="Example: The listing photos do not match the description and need review."
+              value={moderationReasonDraft}
+              onChange={(event) => setModerationReasonDraft(event.target.value)}
+            />
+          </Field>
+          <div className="row-actions">
+            <Button
+              tone={moderationModal?.action === "archive" ? "danger" : "secondary"}
+              type="button"
+              disabled={moderateMutation.isPending || moderationReasonDraft.trim().length < 5 || !moderationModal}
+              onClick={() => {
+                if (!moderationModal) return;
+                moderateMutation.mutate({
+                  id: moderationModal.id,
+                  action: moderationModal.action,
+                  reason: moderationReasonDraft.trim()
+                });
+              }}
+            >
+              {moderateMutation.isPending
+                ? "Saving..."
+                : moderationModal?.action === "archive"
+                  ? "Confirm removal"
+                  : "Confirm pause"}
+            </Button>
+            <Button
+              tone="secondary"
+              type="button"
+              disabled={moderateMutation.isPending}
+              onClick={() => {
+                setModerationModal(null);
+                setModerationReasonDraft("");
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <PageHeader eyebrow="Admin" title="Listings" description="Pause or remove problematic listings from the marketplace without deleting moderation history." />
+      <AdminWorkspaceNav />
+      <div className="admin-filter-row">
+        <Tabs
+          value={listingFilter}
+          onChange={(value: string) => setListingFilter(value as "active" | "paused" | "removed")}
+          items={[
+            { label: `Active (${activeCount})`, value: "active" },
+            { label: `Paused (${pausedCount})`, value: "paused" },
+            { label: `Removed (${removedCount})`, value: "removed" }
+          ]}
+        />
+      </div>
+      {listingFilter === "removed" ? (
+        <InlineNotice tone="warning">
+          Removed listings stay recoverable for 30 days. After that, the backend permanently flushes them from storage.
+        </InlineNotice>
+      ) : null}
       <div className="stack-list">
-        {listingsQuery.data?.map((listing: ListingRecord) => (
-          <Card key={listing._id} className="mini-listing">
-            <div>
-              <strong>{listing.title}</strong>
-              <p>{listing.locationText}</p>
-              <p>Status: {listing.status}</p>
+        {filteredListings.map((listing: ListingRecord) => (
+          <Card key={listing._id} className="admin-listing-card">
+            <div className="admin-listing-media">
+              {listing.coverImageUrl ? (
+                <img alt={listing.title} src={listing.coverImageUrl} />
+              ) : (
+                <div className="admin-listing-media-fallback">No image</div>
+              )}
             </div>
-            <div className="mini-actions">
-              <Button
-                tone="secondary"
-                onClick={() => {
-                  const reason = reasonPrompt("Reason for pausing this listing");
-                  if (!reason) return;
-                  moderateMutation.mutate({ id: listing._id, action: "pause", reason });
-                }}
-                type="button"
-              >
-                Pause
-              </Button>
-              <Button
-                tone="danger"
-                onClick={() => {
-                  const reason = reasonPrompt("Reason for archiving this listing");
-                  if (!reason) return;
-                  moderateMutation.mutate({ id: listing._id, action: "archive", reason });
-                }}
-                type="button"
-              >
-                Archive
-              </Button>
+
+            <div className="admin-listing-main">
+              <div className="section-heading-row">
+                <div>
+                  <strong>{listing.title}</strong>
+                  <p>{listing.locationText}</p>
+                </div>
+                <div className="admin-listing-badges">
+                  <Badge
+                    tone={
+                      listing.status === "active"
+                        ? "success"
+                        : listing.status === "paused"
+                          ? "warning"
+                          : "danger"
+                    }
+                  >
+                    {listing.isDeleted ? "removed" : listing.status}
+                  </Badge>
+                  <Badge tone={listing.ownerContext?.verificationStatus === "verified" ? "primary" : "neutral"}>
+                    {listing.ownerContext?.verificationStatus === "verified" ? "Verified lister" : "Verification pending"}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="admin-listing-meta-grid">
+                <div>
+                  <span>Listing type</span>
+                  <strong>{String(listing.listingType).replace(/_/g, " ")}</strong>
+                </div>
+                <div>
+                  <span>Rent</span>
+                  <strong>{formatCurrency(listing.rent)}</strong>
+                </div>
+                <div>
+                  <span>Deposit</span>
+                  <strong>{formatCurrency(listing.deposit)}</strong>
+                </div>
+                <div>
+                  <span>Move-in</span>
+                  <strong>{formatDate(listing.moveInDate)}</strong>
+                </div>
+                <div>
+                  <span>Created</span>
+                  <strong>{formatDate(listing.createdAt)}</strong>
+                </div>
+                <div>
+                  <span>Updated</span>
+                  <strong>{formatDate(listing.updatedAt)}</strong>
+                </div>
+              </div>
+
+              <div className="admin-owner-context">
+                <strong>{listing.ownerContext?.fullName || "Owner profile incomplete"}</strong>
+                <p>{listing.ownerContext?.occupation || "Occupation not added"}</p>
+                <p>{listing.ownerContext?.phone || "Phone not available"}</p>
+                <p>{listing.ownerContext?.email || "Email not available"}</p>
+              </div>
+
+              <div className="mini-actions">
+                <ButtonLink to={`/listings/${listing._id}`} tone="secondary">
+                  View listing
+                </ButtonLink>
+                {!listing.isDeleted ? (
+                  <>
+                    {listing.status === "paused" ? (
+                      <Button
+                        tone="secondary"
+                        disabled={reliveMutation.isPending}
+                        onClick={() => reliveMutation.mutate(listing._id)}
+                        type="button"
+                      >
+                        {reliveMutation.isPending ? "Re-living..." : "Re-live"}
+                      </Button>
+                    ) : (
+                      <Button
+                        tone="secondary"
+                        onClick={() => {
+                          setModerationModal({
+                            id: listing._id,
+                            title: listing.title,
+                            action: "pause"
+                          });
+                          setModerationReasonDraft("");
+                        }}
+                        type="button"
+                      >
+                        Pause
+                      </Button>
+                    )}
+                    <Button
+                      tone="danger"
+                      onClick={() => {
+                        setModerationModal({
+                          id: listing._id,
+                          title: listing.title,
+                          action: "archive"
+                        });
+                        setModerationReasonDraft("");
+                      }}
+                      type="button"
+                    >
+                      Remove from marketplace
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span>Removed from live moderation queue. Auto-flushes after 30 days unless restored.</span>
+                    <Button
+                      tone="secondary"
+                      disabled={restoreMutation.isPending}
+                      onClick={() => restoreMutation.mutate(listing._id)}
+                      type="button"
+                    >
+                      {restoreMutation.isPending ? "Restoring..." : "Restore"}
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           </Card>
         ))}
+        {!filteredListings.length ? (
+          <EmptyState
+            title={`No ${listingFilter} listings right now`}
+            copy={
+              listingFilter === "active"
+                ? "Live listings that need admin review will appear here."
+                : listingFilter === "paused"
+                  ? "Paused listings remain here until an admin decides on the next moderation step."
+                  : "Removed listings are preserved here as moderation history."
+            }
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -1243,6 +1603,7 @@ export function AdminVerificationsPage() {
   return (
     <div className="page-shell">
       <PageHeader eyebrow="Admin" title="Verifications" description="Approve or reject KYC-lite trust submissions." />
+      <AdminWorkspaceNav />
       <div className="stack-list">
         {verificationsQuery.data?.map((verification: AdminVerificationReview) => (
           <Card key={verification._id} className="mini-listing">

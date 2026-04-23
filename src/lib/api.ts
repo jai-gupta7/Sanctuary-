@@ -328,6 +328,16 @@ export const listingsApi = {
       method: "POST",
       auth: true,
       body: JSON.stringify({ reason })
+    }),
+  adminRestore: (id: string) =>
+    apiFetch<ListingRecord>(`/admin/listings/${id}/restore`, {
+      method: "POST",
+      auth: true
+    }),
+  adminRelive: (id: string) =>
+    apiFetch<ListingRecord>(`/admin/listings/${id}/relive`, {
+      method: "POST",
+      auth: true
     })
 };
 
@@ -406,6 +416,11 @@ export const adminApi = {
       method: "POST",
       auth: true,
       body: JSON.stringify({ reason })
+    }),
+  unflagUser: (id: string) =>
+    apiFetch<UserRecord>(`/admin/users/${id}/unflag`, {
+      method: "POST",
+      auth: true
     }),
   deactivateUser: (id: string, reason: string) =>
     apiFetch<UserRecord>(`/admin/users/${id}/deactivate`, {

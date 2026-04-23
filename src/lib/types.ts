@@ -76,6 +76,14 @@ export type ListingRecord = {
   publishedAt?: string;
   createdAt: string;
   updatedAt: string;
+  coverImageUrl?: string | null;
+  ownerContext?: {
+    fullName?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    occupation?: string | null;
+    verificationStatus?: "verified" | "not_verified";
+  } | null;
 };
 
 export type ListingImage = {
