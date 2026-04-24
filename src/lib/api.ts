@@ -37,6 +37,12 @@ type RequestOptions = RequestInit & {
   auth?: boolean;
 };
 
+type ApiErrorDetail = {
+  path?: string;
+  message?: string;
+  code?: string;
+};
+
 let inMemoryTokens: AuthTokens | null = readStoredTokens();
 let refreshPromise: Promise<AuthTokens | null> | null = null;
 
@@ -84,8 +90,15 @@ async function parseResponse<T>(response: Response): Promise<T> {
     return json.data as T;
   }
 
+  const errorDetails = Array.isArray(json?.error?.details) ? (json?.error?.details as ApiErrorDetail[]) : undefined;
+  const fallbackDetailMessage = errorDetails?.find((detail) => detail.message)?.message;
+  const message =
+    json?.error?.message === "Invalid request payload" && fallbackDetailMessage
+      ? fallbackDetailMessage
+      : json?.error?.message ?? `Request failed with status ${response.status}`;
+
   throw new ApiError(
-    json?.error?.message ?? `Request failed with status ${response.status}`,
+    message,
     response.status,
     json?.error?.code ?? "API_ERROR",
     json?.error?.details
@@ -175,12 +188,19 @@ export const authApi = {
 
 export const usersApi = {
   getMe: () => apiFetch<CurrentUserPayload>("/users/me", { auth: true }),
-  updateMe: (payload: Partial<UserProfile> & { email?: string }) =>
-    apiFetch<CurrentUserPayload>("/users/me", {
+  updateMe: (payload: Partial<UserProfile> & { email?: string }) => {
+    const normalizedPayload = {
+      ...payload,
+      email: payload.email?.trim() ? payload.email.trim() : undefined,
+      profileImageUrl: payload.profileImageUrl?.trim() ? payload.profileImageUrl.trim() : undefined
+    };
+
+    return apiFetch<CurrentUserPayload>("/users/me", {
       method: "PUT",
       auth: true,
-      body: JSON.stringify(payload)
-    }),
+      body: JSON.stringify(normalizedPayload)
+    });
+  },
   getPublicProfile: (id: string) => apiFetch<{ profile: UserProfile; verificationStatus: string }>(`/profiles/${id}`)
 };
 
