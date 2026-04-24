@@ -62,6 +62,7 @@ function mapListingDetail(data: ListingDetailPayload): ListingDetailVM {
 
   return {
     id: data.listing._id,
+    listingType: data.listing.listingType,
     title: data.listing.title,
     description: data.listing.description,
     location: data.listing.locationText,
@@ -82,7 +83,13 @@ function mapListingDetail(data: ListingDetailPayload): ListingDetailVM {
     navigationUrl: data.listerContact?.navigationUrl ?? null,
     latitude: data.listing.latitude,
     longitude: data.listing.longitude,
-    hasAcceptedAccess: Boolean(data.viewerContext?.hasAcceptedAccess)
+    hasAcceptedAccess: Boolean(data.viewerContext?.hasAcceptedAccess),
+    propertyDetails: data.listing.propertyDetails,
+    replacementDetails: data.listing.replacementDetails,
+    householdProfile: data.listing.householdProfile,
+    compatibilityProfile: data.listing.compatibilityProfile,
+    idealFlatmateProfile: data.listing.idealFlatmateProfile,
+    houseRules: data.listing.houseRules
   };
 }
 
@@ -386,6 +393,31 @@ export function ListingDetailPage() {
   const trimmedApplicationMessage = applicationMessage.trim();
   const trimmedRejectionReason = rejectionReasonDraft.trim();
   const existingApplication = myApplicationsQuery.data?.find((application) => application.listingId === id);
+  const householdSummary = [
+    listing.householdProfile?.currentOccupants ? `${listing.householdProfile.currentOccupants} current occupants` : null,
+    listing.householdProfile?.occupationMix,
+    listing.householdProfile?.workModeMix,
+    listing.householdProfile?.languagesSpoken ? `Languages: ${listing.householdProfile.languagesSpoken}` : null
+  ].filter(Boolean) as string[];
+  const compatibilitySummary = [
+    listing.compatibilityProfile?.smokingPolicy ? `Smoking: ${listing.compatibilityProfile.smokingPolicy.replace(/_/g, " ")}` : null,
+    listing.compatibilityProfile?.drinkingPolicy ? `Drinking: ${listing.compatibilityProfile.drinkingPolicy.replace(/_/g, " ")}` : null,
+    listing.compatibilityProfile?.kitchenPreference ? `Kitchen: ${listing.compatibilityProfile.kitchenPreference.replace(/_/g, " ")}` : null,
+    listing.compatibilityProfile?.guestPolicy ? `Guests: ${listing.compatibilityProfile.guestPolicy.replace(/_/g, " ")}` : null,
+    listing.compatibilityProfile?.cleanlinessLevel ? `Cleanliness: ${listing.compatibilityProfile.cleanlinessLevel.replace(/_/g, " ")}` : null,
+    listing.compatibilityProfile?.socialVibe ? `Vibe: ${listing.compatibilityProfile.socialVibe.replace(/_/g, " ")}` : null
+  ].filter(Boolean) as string[];
+  const idealFitSummary = [
+    listing.idealFlatmateProfile?.preferredGender ? `Preferred gender: ${listing.idealFlatmateProfile.preferredGender}` : null,
+    listing.idealFlatmateProfile?.preferredOccupation ? `Preferred occupation: ${listing.idealFlatmateProfile.preferredOccupation}` : null,
+    listing.idealFlatmateProfile?.preferredWorkStyle ? `Work style: ${listing.idealFlatmateProfile.preferredWorkStyle}` : null,
+    listing.idealFlatmateProfile?.bestSuitedFor ? `Best suited for: ${listing.idealFlatmateProfile.bestSuitedFor}` : null
+  ].filter(Boolean) as string[];
+  const rulesSummary = [
+    listing.houseRules?.houseRules ? `House rules: ${listing.houseRules.houseRules}` : null,
+    listing.houseRules?.nonNegotiables ? `Non-negotiables: ${listing.houseRules.nonNegotiables}` : null,
+    listing.houseRules?.restrictions ? `Restrictions: ${listing.houseRules.restrictions}` : null
+  ].filter(Boolean) as string[];
 
   return (
     <div className="page-shell">
@@ -612,7 +644,7 @@ export function ListingDetailPage() {
               <h3>Why this listing feels credible</h3>
               <Badge tone="neutral">Move-in clarity</Badge>
             </div>
-            <p>{listing.description}</p>
+            <p className="listing-description-rich">{listing.description}</p>
             <div className="detail-metrics">
               <div>
                 <span>Rent</span>
@@ -629,6 +661,22 @@ export function ListingDetailPage() {
             </div>
           </div>
 
+          {householdSummary.length ? (
+            <div className="detail-section">
+              <div className="section-heading-row">
+                <h3>Current household</h3>
+                <Badge tone="primary">People context</Badge>
+              </div>
+              <ul className="chip-list">
+                {householdSummary.map((item) => (
+                  <li key={item}>
+                    <Badge tone="neutral">{item}</Badge>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           <div className="detail-section">
             <div className="section-heading-row">
               <h3>Household context</h3>
@@ -642,6 +690,91 @@ export function ListingDetailPage() {
               ))}
             </ul>
           </div>
+
+          {compatibilitySummary.length ? (
+            <div className="detail-section">
+              <div className="section-heading-row">
+                <h3>Lifestyle compatibility</h3>
+                <Badge tone="neutral">Fit signals</Badge>
+              </div>
+              <ul className="chip-list">
+                {compatibilitySummary.map((item) => (
+                  <li key={item}>
+                    <Badge tone="neutral">{item}</Badge>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {idealFitSummary.length ? (
+            <div className="detail-section">
+              <div className="section-heading-row">
+                <h3>Ideal flatmate</h3>
+                <Badge tone="primary">Compatibility</Badge>
+              </div>
+              <ul className="chip-list">
+                {idealFitSummary.map((item) => (
+                  <li key={item}>
+                    <Badge tone="neutral">{item}</Badge>
+                  </li>
+                ))}
+              </ul>
+              {listing.idealFlatmateProfile?.preferredFlatmateProfile ? (
+                <p>{listing.idealFlatmateProfile.preferredFlatmateProfile}</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {listing.listingType === "replacement" && listing.replacementDetails ? (
+            <div className="detail-section">
+              <div className="section-heading-row">
+                <h3>Replacement details</h3>
+                <Badge tone="warning">Takeover flow</Badge>
+              </div>
+              <div className="detail-metrics">
+                {listing.replacementDetails.replacementSpotType ? (
+                  <div>
+                    <span>Replacing</span>
+                    <strong>{listing.replacementDetails.replacementSpotType}</strong>
+                  </div>
+                ) : null}
+                {listing.replacementDetails.replacementHandoverDate ? (
+                  <div>
+                    <span>Handover</span>
+                    <strong>{formatDate(listing.replacementDetails.replacementHandoverDate)}</strong>
+                  </div>
+                ) : null}
+                {listing.replacementDetails.landlordApprovalRequired ? (
+                  <div>
+                    <span>Landlord approval</span>
+                    <strong>{listing.replacementDetails.landlordApprovalRequired === "yes" ? "Required" : "Not required"}</strong>
+                  </div>
+                ) : null}
+                {listing.replacementDetails.flatmateApprovalRequired ? (
+                  <div>
+                    <span>Flatmate approval</span>
+                    <strong>{listing.replacementDetails.flatmateApprovalRequired === "yes" ? "Required" : "Not required"}</strong>
+                  </div>
+                ) : null}
+              </div>
+              {listing.replacementDetails.depositTransferNotes ? <p>{listing.replacementDetails.depositTransferNotes}</p> : null}
+            </div>
+          ) : null}
+
+          {rulesSummary.length ? (
+            <div className="detail-section">
+              <div className="section-heading-row">
+                <h3>Rules and boundaries</h3>
+                <Badge tone="danger">Non-negotiables</Badge>
+              </div>
+              <div className="stack-list">
+                {rulesSummary.map((item) => (
+                  <p key={item}>{item}</p>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </Card>
 
         <div className="side-stack">

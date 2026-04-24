@@ -447,5 +447,11 @@ export const adminApi = {
       method: "POST",
       auth: true,
       body: JSON.stringify({ reason })
+    }),
+  activateUser: (id: string, reason: string) =>
+    apiFetch<UserRecord>(`/admin/users/${id}/activate`, {
+      method: "POST",
+      auth: true,
+      body: JSON.stringify({ reason })
     })
 };

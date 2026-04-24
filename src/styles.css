@@ -1321,6 +1321,179 @@ p {
   font-size: 0.95rem;
 }
 
+.wizard-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.wizard-sidebar,
+.wizard-main-card,
+.wizard-review-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.wizard-sidebar {
+  align-content: start;
+}
+
+.wizard-sidebar-copy {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.wizard-sidebar-copy h3,
+.wizard-review-card h3 {
+  margin-bottom: 0;
+}
+
+.wizard-step-stack,
+.wizard-step-body {
+  display: grid;
+  gap: 1rem;
+}
+
+.wizard-step-card {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(215, 226, 245, 0.95);
+  border-radius: 1.1rem;
+  background: rgba(255, 255, 255, 0.7);
+  text-align: left;
+  cursor: pointer;
+}
+
+.wizard-step-card span,
+.wizard-step-card small,
+.wizard-group-header span,
+.wizard-review-item span,
+.wizard-step-caption {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.wizard-step-card strong,
+.wizard-group-header strong,
+.wizard-review-item strong {
+  color: var(--text);
+}
+
+.wizard-step-card-active {
+  border-color: rgba(37, 99, 235, 0.28);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.wizard-step-card-complete {
+  box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.12);
+}
+
+.wizard-main-card {
+  padding: 1.35rem;
+}
+
+.wizard-section-grid,
+.wizard-review-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.wizard-section-grid-three {
+  grid-template-columns: 1fr;
+}
+
+.wizard-field-group,
+.wizard-subsection {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.wizard-subsection {
+  padding: 1rem;
+  border: 1px solid rgba(215, 226, 245, 0.95);
+  border-radius: 1.2rem;
+  background: rgba(238, 244, 255, 0.58);
+}
+
+.wizard-group-header {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.wizard-choice-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.wizard-choice-card,
+.wizard-chip {
+  border: 1px solid rgba(215, 226, 245, 0.95);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.wizard-choice-card {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1rem 1.05rem;
+  border-radius: 1.15rem;
+  text-align: left;
+}
+
+.wizard-choice-card-active,
+.wizard-chip-active {
+  border-color: rgba(37, 99, 235, 0.26);
+  background: rgba(37, 99, 235, 0.09);
+  color: var(--primary);
+}
+
+.wizard-choice-card span {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.wizard-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.wizard-chip {
+  min-height: 2.6rem;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+}
+
+.wizard-review-grid {
+  grid-template-columns: 1fr;
+}
+
+.wizard-review-item {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.9rem 0;
+  border-top: 1px solid rgba(215, 226, 245, 0.8);
+}
+
+.wizard-review-item:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.wizard-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(215, 226, 245, 0.9);
+}
+
+.listing-description-rich {
+  white-space: pre-line;
+}
+
 .rejection-modal-content {
   gap: 1rem;
 }
@@ -1423,6 +1596,34 @@ p {
 
 .admin-owner-context p {
   margin: 0;
+}
+
+.admin-user-heading {
+  align-items: center;
+  display: flex;
+  gap: 0.85rem;
+}
+
+.admin-user-heading p {
+  margin: 0.1rem 0 0;
+}
+
+.admin-user-avatar {
+  aspect-ratio: 1;
+  border-radius: 1rem;
+  box-shadow: var(--shadow-soft);
+  height: 3.5rem;
+  object-fit: cover;
+  width: 3.5rem;
+}
+
+.admin-user-avatar-fallback {
+  align-items: center;
+  background: linear-gradient(135deg, var(--brand), var(--teal));
+  color: #ffffff;
+  display: flex;
+  font-weight: 900;
+  justify-content: center;
 }
 
 .section-heading-row {
@@ -1543,6 +1744,29 @@ p {
   .listing-detail-hero {
     grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.55fr);
     align-items: start;
+  }
+
+  .wizard-shell {
+    grid-template-columns: minmax(280px, 0.7fr) minmax(0, 1.3fr);
+    align-items: start;
+  }
+
+  .wizard-sidebar {
+    position: sticky;
+    top: 6rem;
+  }
+
+  .wizard-section-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wizard-section-grid-three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .wizard-choice-grid,
+  .wizard-review-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .site-footer {

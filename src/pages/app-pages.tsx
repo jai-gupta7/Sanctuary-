@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 
+import { ListingFormWizard } from "../components/listing-form-wizard";
 import { MapPicker } from "../components/map-picker";
 import { MapPreview } from "../components/map-preview";
 import { Badge, Button, ButtonLink, Card, EmptyState, Field, InlineNotice, Input, LoadingBlock, Modal, PageHeader, Select, Stat, Tabs, Textarea } from "../components/ui";
@@ -82,31 +83,11 @@ const profileSchema = z.object({
   profileImageUrl: z.string().optional()
 });
 
-const listingSchema = z.object({
-  listingType: z.enum(["replacement", "flatmate_needed", "full_flat"]),
-  title: z.string().min(3),
-  description: z.string().min(10),
-  rent: z.number().min(0),
-  deposit: z.number().min(0),
-  locationText: z.string().min(2),
-  exactAddress: z.string().min(5, "Enter the property address").optional().or(z.literal("")),
-  googleMapsUrl: z.string().url("Enter a valid Google Maps link").optional().or(z.literal("")),
-  latitude: z.number().min(-90).max(90).optional(),
-  longitude: z.number().min(-180).max(180).optional(),
-  moveInDate: z.string().min(1),
-  status: z.enum(["draft", "active", "paused", "filled", "archived"]),
-  genderPreference: z.string().optional(),
-  occupationPreference: z.string().optional(),
-  smokingAllowed: z.boolean().optional(),
-  drinkingAllowed: z.boolean().optional()
-});
-
 const verificationSchema = z.object({
   documentType: z.string().min(2)
 });
 
 type ProfileValues = z.infer<typeof profileSchema>;
-type ListingValues = z.infer<typeof listingSchema>;
 type VerificationValues = z.infer<typeof verificationSchema>;
 
 function useRefreshCurrentUserQuery() {
@@ -381,7 +362,10 @@ export function VerificationPage() {
   });
 
   const status = verificationQuery.data?.status ?? "not_submitted";
-  const isFormLocked = status === "pending" || status === "verified";
+  const resubmissionAllowedAt = verificationQuery.data?.resubmissionAllowedAt;
+  const isRejectedCooldownActive =
+    status === "rejected" && Boolean(resubmissionAllowedAt) && new Date(resubmissionAllowedAt as string) > new Date();
+  const isFormLocked = status === "pending" || status === "verified" || isRejectedCooldownActive;
 
   return (
     <div className="page-shell">
@@ -399,6 +383,11 @@ export function VerificationPage() {
           {verificationQuery.data?.rejectionReason ? <InlineNotice tone="danger">{verificationQuery.data.rejectionReason}</InlineNotice> : null}
           {status === "verified" ? <InlineNotice tone="success">Your profile is verified.</InlineNotice> : null}
           {status === "pending" ? <InlineNotice tone="info">Your submission is awaiting admin review.</InlineNotice> : null}
+          {isRejectedCooldownActive ? (
+            <InlineNotice tone="warning">
+              Verification remains rejected for 15 days after review. You can submit again after {formatDate(resubmissionAllowedAt)}.
+            </InlineNotice>
+          ) : null}
           {status === "verified" ? (
             <InlineNotice tone="info">
               Verification is complete, so no further document upload is needed right now.
@@ -452,7 +441,13 @@ export function VerificationPage() {
                 />
               </Field>
               <Button type="submit" disabled={isSubmitting || isFormLocked}>
-                {isSubmitting ? "Submitting..." : status === "pending" ? "Submission pending" : "Submit verification"}
+                {isSubmitting
+                  ? "Submitting..."
+                  : status === "pending"
+                    ? "Submission pending"
+                    : isRejectedCooldownActive
+                      ? "Resubmission locked"
+                      : "Submit verification"}
               </Button>
             </form>
           )}
@@ -588,255 +583,7 @@ export function MyListingsPage() {
 }
 
 export function ListingEditorPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { currentUser } = useAuth();
-  const { pushToast } = useToast();
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
-
-  const listingQuery = useQuery({
-    queryKey: ["listing-editor", id],
-    queryFn: () => listingsApi.get(id!, true),
-    enabled: Boolean(id)
-  });
-
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    reset,
-    formState: { errors, isSubmitting }
-  } = useForm<ListingValues>({
-    resolver: zodResolver(listingSchema),
-    defaultValues: {
-      listingType: "flatmate_needed",
-      title: "",
-      description: "",
-      rent: 0,
-      deposit: 0,
-      locationText: "",
-      exactAddress: "",
-      googleMapsUrl: "",
-      latitude: undefined,
-      longitude: undefined,
-      moveInDate: "",
-      status: "draft",
-      genderPreference: "",
-      occupationPreference: "",
-      smokingAllowed: false,
-      drinkingAllowed: false
-    }
-  });
-
-  useEffect(() => {
-    if (!listingQuery.data) return;
-
-    setExistingImageUrls(listingQuery.data.images.map((image) => image.imageUrl));
-
-    reset({
-      listingType: listingQuery.data.listing.listingType,
-      title: listingQuery.data.listing.title,
-      description: listingQuery.data.listing.description,
-      rent: listingQuery.data.listing.rent,
-      deposit: listingQuery.data.listing.deposit,
-      locationText: listingQuery.data.listing.locationText,
-      exactAddress: listingQuery.data.listing.exactAddress ?? "",
-      googleMapsUrl: listingQuery.data.listing.googleMapsUrl ?? "",
-      latitude: listingQuery.data.listing.latitude,
-      longitude: listingQuery.data.listing.longitude,
-      moveInDate: listingQuery.data.listing.moveInDate.slice(0, 10),
-      status: listingQuery.data.listing.status,
-      genderPreference: listingQuery.data.preference?.genderPreference ?? "",
-      occupationPreference: listingQuery.data.preference?.occupationPreference ?? "",
-      smokingAllowed: listingQuery.data.preference?.smokingAllowed ?? false,
-      drinkingAllowed: listingQuery.data.preference?.drinkingAllowed ?? false
-    });
-  }, [listingQuery.data, reset]);
-
-  const selectedStatus = watch("status");
-  const prospectiveImageCount = existingImageUrls.length + imageFiles.length;
-  const selectedLatitude = watch("latitude");
-  const selectedLongitude = watch("longitude");
-
-  return (
-    <div className="page-shell">
-      <PageHeader
-        eyebrow={id ? "Edit listing" : "Create listing"}
-        title={id ? "Update your listing" : "Create a new listing"}
-        description="Drafts are low pressure. Publishing is blocked until the backend requirements are actually met."
-      />
-
-      {selectedStatus === "active" && !currentUser?.eligibility.eligible ? (
-        <InlineNotice tone="warning">
-          Publishing requires an interaction-ready profile before the backend will accept an active listing.
-        </InlineNotice>
-      ) : null}
-      {selectedStatus === "active" && prospectiveImageCount < 3 ? (
-        <InlineNotice tone="warning">Publishing also requires at least 3 images.</InlineNotice>
-      ) : null}
-
-      <Card>
-        <form
-          className="form-grid"
-          onSubmit={handleSubmit(async (values) => {
-            try {
-              const uploadedImageUrls =
-                imageFiles.length > 0
-                  ? await Promise.all(imageFiles.map((file) => uploadsApi.uploadFile(file, "listing_image", "listing", id)))
-                  : [];
-
-              const payload = {
-                ...values,
-                moveInDate: values.moveInDate,
-                imageUrls: [...existingImageUrls, ...uploadedImageUrls]
-              };
-
-              if (id) {
-                await listingsApi.update(id, payload);
-              } else {
-                await listingsApi.create(payload);
-              }
-
-              await queryClient.invalidateQueries({ queryKey: ["my-listings"] });
-              await queryClient.invalidateQueries({ queryKey: ["listings"] });
-              pushToast(id ? "Listing updated." : "Listing created.", "success");
-              navigate("/my-listings");
-            } catch (error) {
-              pushToast(error instanceof Error ? error.message : "Unable to save listing", "error");
-            }
-          })}
-        >
-          <Field label="Listing type" error={errors.listingType?.message}>
-            <Select {...register("listingType")}>
-              <option value="flatmate_needed">Flatmate needed</option>
-              <option value="replacement">Replacement</option>
-              <option value="full_flat">Full flat</option>
-            </Select>
-          </Field>
-          <Field label="Title" error={errors.title?.message}>
-            <Input {...register("title")} />
-          </Field>
-          <Field label="Description" error={errors.description?.message}>
-            <Textarea rows={5} {...register("description")} />
-          </Field>
-            <Field label="Rent" error={errors.rent?.message}>
-            <Input inputMode="numeric" {...register("rent", { valueAsNumber: true })} />
-          </Field>
-          <Field label="Deposit" error={errors.deposit?.message}>
-            <Input inputMode="numeric" {...register("deposit", { valueAsNumber: true })} />
-          </Field>
-          <Field label="Location" error={errors.locationText?.message}>
-            <Input {...register("locationText")} />
-          </Field>
-          <Field label="Exact property address" error={errors.exactAddress?.message}>
-            <Input placeholder="Flat number, building, street, locality" {...register("exactAddress")} />
-          </Field>
-          <Field label="Google Maps link" error={errors.googleMapsUrl?.message}>
-            <Input placeholder="https://maps.google.com/..." {...register("googleMapsUrl")} />
-          </Field>
-          <Field label="Map pin">
-            <MapPicker
-              latitude={selectedLatitude}
-              longitude={selectedLongitude}
-              onChange={({ latitude, longitude, locationText, exactAddress, googleMapsUrl }) => {
-                setValue("latitude", latitude, { shouldDirty: true, shouldValidate: true });
-                setValue("longitude", longitude, { shouldDirty: true, shouldValidate: true });
-                if (locationText) {
-                  setValue("locationText", locationText, { shouldDirty: true, shouldValidate: true });
-                }
-                if (exactAddress) {
-                  setValue("exactAddress", exactAddress, { shouldDirty: true, shouldValidate: true });
-                }
-                if (googleMapsUrl) {
-                  setValue("googleMapsUrl", googleMapsUrl, { shouldDirty: true, shouldValidate: true });
-                }
-              }}
-            />
-          </Field>
-          <Field label="Move-in date" error={errors.moveInDate?.message}>
-            <Input type="date" {...register("moveInDate")} />
-          </Field>
-          <Field label="Target status" error={errors.status?.message}>
-            <Select {...register("status")}>
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="filled">Filled</option>
-              <option value="archived">Archived</option>
-            </Select>
-          </Field>
-          <Field label="Gender preference">
-            <Input placeholder="Any, female, male..." {...register("genderPreference")} />
-          </Field>
-          <Field label="Occupation preference">
-            <Input placeholder="Working professional, student..." {...register("occupationPreference")} />
-          </Field>
-          <Field label="Listing images">
-            <Input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(event) => setImageFiles(Array.from(event.target.files ?? []))}
-            />
-            {existingImageUrls.length ? (
-              <div className="editor-image-grid">
-                {existingImageUrls.map((imageUrl, index) => (
-                  <div key={imageUrl} className="editor-image-card">
-                    <div className="editor-image-frame">
-                      <img alt={`Existing listing image ${index + 1}`} src={imageUrl} />
-                    </div>
-                    <div className="mini-actions">
-                      <span>Current image {index + 1}</span>
-                      <Button
-                        tone="danger"
-                        type="button"
-                        onClick={() => setExistingImageUrls((current) => current.filter((url) => url !== imageUrl))}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            {imageFiles.length ? (
-              <div className="editor-image-grid">
-                {imageFiles.map((file, index) => (
-                  <div key={`${file.name}-${index}`} className="editor-image-card editor-image-card-pending">
-                    <div className="editor-image-meta">
-                      <strong>{file.name}</strong>
-                      <span>Will upload on save</span>
-                    </div>
-                    <div className="mini-actions">
-                      <span>New image {index + 1}</span>
-                      <Button
-                        tone="secondary"
-                        type="button"
-                        onClick={() => setImageFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </Field>
-          <div className="row-actions">
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : id ? "Save changes" : "Create listing"}
-            </Button>
-            <ButtonLink to="/my-listings" tone="secondary">
-              Cancel
-            </ButtonLink>
-          </div>
-        </form>
-      </Card>
-    </div>
-  );
+  return <ListingFormWizard />;
 }
 
 export function ApplicationsPage() {
@@ -1119,7 +866,7 @@ export function AdminUsersPage() {
   const [userModerationModal, setUserModerationModal] = useState<{
     id: string;
     label: string;
-    action: "flag" | "deactivate";
+    action: "flag" | "deactivate" | "activate";
   } | null>(null);
   const [userModerationReasonDraft, setUserModerationReasonDraft] = useState("");
   const usersQuery = useQuery({
@@ -1158,13 +905,29 @@ export function AdminUsersPage() {
     }
   });
 
-  const isUserModerationPending = flagMutation.isPending || unflagMutation.isPending || deactivateMutation.isPending;
+  const activateMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => adminApi.activateUser(id, reason),
+    onSuccess: () => {
+      pushToast("User activated.", "success");
+      setUserModerationModal(null);
+      setUserModerationReasonDraft("");
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+    }
+  });
+
+  const isUserModerationPending = flagMutation.isPending || unflagMutation.isPending || deactivateMutation.isPending || activateMutation.isPending;
 
   return (
     <div className="page-shell">
       <Modal
         open={Boolean(userModerationModal)}
-        title={userModerationModal?.action === "deactivate" ? "Deactivate user" : "Flag user"}
+        title={
+          userModerationModal?.action === "deactivate"
+            ? "Deactivate user"
+            : userModerationModal?.action === "activate"
+              ? "Activate user"
+              : "Flag user"
+        }
         onClose={() => {
           if (isUserModerationPending) return;
           setUserModerationModal(null);
@@ -1172,10 +935,20 @@ export function AdminUsersPage() {
         }}
       >
         <div className="stack-list rejection-modal-content">
-          <InlineNotice tone={userModerationModal?.action === "deactivate" ? "danger" : "warning"}>
+          <InlineNotice
+            tone={
+              userModerationModal?.action === "deactivate"
+                ? "danger"
+                : userModerationModal?.action === "activate"
+                  ? "success"
+                  : "warning"
+            }
+          >
             {userModerationModal?.action === "deactivate"
-              ? "Deactivate only when the user should lose access to marketplace actions. Record a clear moderation reason."
-              : "Flag keeps the user active but marks the account for trust review. Record what triggered the flag."}
+              ? "Deactivate only when the user should lose access to marketplace actions. Deactivation clears any flag because this is now the stronger moderation state."
+              : userModerationModal?.action === "activate"
+                ? "Activation restores account access and clears the previous moderation note. Record why this account is safe to restore."
+                : "Flag keeps the active user usable but marks the account for trust review. Inactive users do not need flags because deactivation already blocks access."}
           </InlineNotice>
           <Field label="Moderation reason" hint={userModerationModal ? `User: ${userModerationModal.label}` : undefined}>
             <Textarea
@@ -1200,6 +973,10 @@ export function AdminUsersPage() {
                   deactivateMutation.mutate(payload);
                   return;
                 }
+                if (userModerationModal.action === "activate") {
+                  activateMutation.mutate(payload);
+                  return;
+                }
                 flagMutation.mutate(payload);
               }}
             >
@@ -1207,6 +984,8 @@ export function AdminUsersPage() {
                 ? "Saving..."
                 : userModerationModal?.action === "deactivate"
                   ? "Confirm deactivation"
+                  : userModerationModal?.action === "activate"
+                    ? "Confirm activation"
                   : "Confirm flag"}
             </Button>
             <Button
@@ -1230,16 +1009,71 @@ export function AdminUsersPage() {
           <Card key={user._id} className="mini-listing">
             <div>
               <div className="section-heading-row">
-                <strong>{user.phone}</strong>
+                <div className="admin-user-heading">
+                  {user.profileContext?.profileImageUrl ? (
+                    <img className="admin-user-avatar" alt={user.profileContext.fullName || user.phone} src={user.profileContext.profileImageUrl} />
+                  ) : (
+                    <div className="admin-user-avatar admin-user-avatar-fallback">
+                      {(user.profileContext?.fullName || user.phone).slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <strong>{user.profileContext?.fullName || user.phone}</strong>
+                    <p>{user.phone}</p>
+                  </div>
+                </div>
                 <div className="admin-listing-badges">
                   <Badge tone={user.isActive === false ? "danger" : "success"}>
                     {user.isActive === false ? "Inactive" : "Active"}
                   </Badge>
                   {user.isFlagged ? <Badge tone="warning">Flagged</Badge> : null}
+                  <Badge tone={user.verificationStatus === "verified" ? "primary" : "neutral"}>
+                    {user.verificationStatus === "verified" ? "Verified" : user.verificationStatus || "not_submitted"}
+                  </Badge>
                 </div>
               </div>
               <p>{user.email || "No email added yet"}</p>
               <p>Role: {user.role}</p>
+              <div className="admin-listing-meta-grid">
+                <div>
+                  <span>Completion</span>
+                  <strong>{user.profileContext?.profileCompletionScore ?? 0}%</strong>
+                </div>
+                <div>
+                  <span>Age</span>
+                  <strong>{user.profileContext?.age ?? "Not added"}</strong>
+                </div>
+                <div>
+                  <span>Gender</span>
+                  <strong>{user.profileContext?.gender || "Not added"}</strong>
+                </div>
+                <div>
+                  <span>Occupation</span>
+                  <strong>{user.profileContext?.occupation || "Not added"}</strong>
+                </div>
+                <div>
+                  <span>Joined</span>
+                  <strong>{formatDate(user.createdAt)}</strong>
+                </div>
+                <div>
+                  <span>Last login</span>
+                  <strong>{formatDate(user.lastLoginAt)}</strong>
+                </div>
+              </div>
+              {user.profileContext?.bio ? (
+                <InlineNotice tone="info">Bio: {user.profileContext.bio}</InlineNotice>
+              ) : (
+                <InlineNotice tone="warning">Profile bio is not completed yet.</InlineNotice>
+              )}
+              {user.verificationContext?.status === "rejected" ? (
+                <InlineNotice tone="danger">
+                  Verification rejected
+                  {user.verificationContext.rejectionReason ? `: ${user.verificationContext.rejectionReason}` : "."}
+                  {user.verificationContext.resubmissionAllowedAt
+                    ? ` Resubmission opens after ${formatDate(user.verificationContext.resubmissionAllowedAt)}.`
+                    : ""}
+                </InlineNotice>
+              ) : null}
               {user.flagReason ? (
                 <InlineNotice tone={user.isActive === false ? "danger" : "warning"}>
                   Moderation note: {user.flagReason}
@@ -1247,46 +1081,66 @@ export function AdminUsersPage() {
               ) : null}
             </div>
             <div className="mini-actions">
-              <Button
-                tone="secondary"
-                disabled={isUserModerationPending}
-                onClick={() => {
-                  setUserModerationModal({
-                    id: user._id,
-                    label: user.email || user.phone,
-                    action: "flag"
-                  });
-                  setUserModerationReasonDraft("");
-                }}
-                type="button"
-              >
-                {user.isFlagged ? "Update flag" : "Flag"}
-              </Button>
-              {user.isFlagged ? (
+              {user.isActive === false ? (
                 <Button
                   tone="secondary"
                   disabled={isUserModerationPending}
-                  onClick={() => unflagMutation.mutate(user._id)}
+                  onClick={() => {
+                    setUserModerationModal({
+                      id: user._id,
+                      label: user.email || user.phone,
+                      action: "activate"
+                    });
+                    setUserModerationReasonDraft("");
+                  }}
                   type="button"
                 >
-                  {unflagMutation.isPending ? "Unflagging..." : "Unflag"}
+                  {activateMutation.isPending ? "Activating..." : "Activate"}
                 </Button>
-              ) : null}
-              <Button
-                tone="danger"
-                disabled={isUserModerationPending || user.isActive === false}
-                onClick={() => {
-                  setUserModerationModal({
-                    id: user._id,
-                    label: user.email || user.phone,
-                    action: "deactivate"
-                  });
-                  setUserModerationReasonDraft("");
-                }}
-                type="button"
-              >
-                {user.isActive === false ? "Deactivated" : "Deactivate"}
-              </Button>
+              ) : (
+                <>
+                  <Button
+                    tone="secondary"
+                    disabled={isUserModerationPending}
+                    onClick={() => {
+                      setUserModerationModal({
+                        id: user._id,
+                        label: user.email || user.phone,
+                        action: "flag"
+                      });
+                      setUserModerationReasonDraft("");
+                    }}
+                    type="button"
+                  >
+                    {user.isFlagged ? "Update flag" : "Flag"}
+                  </Button>
+                  {user.isFlagged ? (
+                    <Button
+                      tone="secondary"
+                      disabled={isUserModerationPending}
+                      onClick={() => unflagMutation.mutate(user._id)}
+                      type="button"
+                    >
+                      {unflagMutation.isPending ? "Unflagging..." : "Unflag"}
+                    </Button>
+                  ) : null}
+                  <Button
+                    tone="danger"
+                    disabled={isUserModerationPending}
+                    onClick={() => {
+                      setUserModerationModal({
+                        id: user._id,
+                        label: user.email || user.phone,
+                        action: "deactivate"
+                      });
+                      setUserModerationReasonDraft("");
+                    }}
+                    type="button"
+                  >
+                    Deactivate
+                  </Button>
+                </>
+              )}
             </div>
           </Card>
         ))}
@@ -1579,6 +1433,11 @@ export function AdminListingsPage() {
 export function AdminVerificationsPage() {
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
+  const [verificationRejectModal, setVerificationRejectModal] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
+  const [verificationRejectReasonDraft, setVerificationRejectReasonDraft] = useState("");
   const verificationsQuery = useQuery({
     queryKey: ["admin-verifications"],
     queryFn: () => verificationApi.adminList()
@@ -1596,12 +1455,64 @@ export function AdminVerificationsPage() {
     mutationFn: ({ id, reason }: { id: string; reason: string }) => verificationApi.reject(id, reason),
     onSuccess: () => {
       pushToast("Verification rejected.", "success");
+      setVerificationRejectModal(null);
+      setVerificationRejectReasonDraft("");
       void queryClient.invalidateQueries({ queryKey: ["admin-verifications"] });
     }
   });
 
   return (
     <div className="page-shell">
+      <Modal
+        open={Boolean(verificationRejectModal)}
+        title="Reject verification"
+        onClose={() => {
+          if (rejectMutation.isPending) return;
+          setVerificationRejectModal(null);
+          setVerificationRejectReasonDraft("");
+        }}
+      >
+        <div className="stack-list rejection-modal-content">
+          <InlineNotice tone="danger">
+            Rejecting verification sends the user back to a rejected state. Add a clear reason so they know what to correct.
+          </InlineNotice>
+          <Field label="Rejection reason" hint={verificationRejectModal ? `Submission: ${verificationRejectModal.label}` : undefined}>
+            <Textarea
+              rows={4}
+              placeholder="Example: Uploaded document is unreadable. Please submit a clearer photo."
+              value={verificationRejectReasonDraft}
+              onChange={(event) => setVerificationRejectReasonDraft(event.target.value)}
+            />
+          </Field>
+          <div className="row-actions">
+            <Button
+              tone="danger"
+              type="button"
+              disabled={rejectMutation.isPending || verificationRejectReasonDraft.trim().length < 5 || !verificationRejectModal}
+              onClick={() => {
+                if (!verificationRejectModal) return;
+                rejectMutation.mutate({
+                  id: verificationRejectModal.id,
+                  reason: verificationRejectReasonDraft.trim()
+                });
+              }}
+            >
+              {rejectMutation.isPending ? "Rejecting..." : "Confirm rejection"}
+            </Button>
+            <Button
+              tone="secondary"
+              type="button"
+              disabled={rejectMutation.isPending}
+              onClick={() => {
+                setVerificationRejectModal(null);
+                setVerificationRejectReasonDraft("");
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
       <PageHeader eyebrow="Admin" title="Verifications" description="Approve or reject KYC-lite trust submissions." />
       <AdminWorkspaceNav />
       <div className="stack-list">
@@ -1627,9 +1538,11 @@ export function AdminVerificationsPage() {
               <Button
                 tone="danger"
                 onClick={() => {
-                  const reason = reasonPrompt("Reason for rejecting verification");
-                  if (!reason) return;
-                  rejectMutation.mutate({ id: verification._id, reason });
+                  setVerificationRejectModal({
+                    id: verification._id,
+                    label: verification.reviewerContext?.fullName || verification.reviewerContext?.phone || `User ${verification.userId.slice(-6)}`
+                  });
+                  setVerificationRejectReasonDraft("");
                 }}
                 type="button"
               >
