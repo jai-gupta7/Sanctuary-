@@ -50,8 +50,12 @@ export type UserProfile = {
 export type VerificationRecord = {
   _id: string;
   userId: string;
-  documentType: string;
+  documentType: "aadhaar" | "passport" | "driving_license" | "voter_id";
+  nameOnDocument: string;
+  documentNumberLast4: string;
   documentUrl: string;
+  documentFrontUrl?: string;
+  documentBackUrl?: string;
   status: "not_submitted" | "pending" | "verified" | "rejected";
   rejectionReason?: string;
   resubmissionAllowedAt?: string;

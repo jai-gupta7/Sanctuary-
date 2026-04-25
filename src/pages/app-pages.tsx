@@ -47,10 +47,6 @@ function applicationNoticeTone(status: "applied" | "shortlisted" | "accepted" | 
   return "info";
 }
 
-function reasonPrompt(label: string) {
-  return window.prompt(label)?.trim() || "";
-}
-
 function AdminWorkspaceNav() {
   const location = useLocation();
   const items = [
@@ -84,7 +80,13 @@ const profileSchema = z.object({
 });
 
 const verificationSchema = z.object({
-  documentType: z.string().min(2)
+  documentType: z.enum(["aadhaar", "passport", "driving_license", "voter_id"]),
+  nameOnDocument: z.string().trim().min(3, "Enter the full name shown on the document").max(160),
+  documentNumberLast4: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{4}$/, "Enter the last 4 characters from the document number")
 });
 
 type ProfileValues = z.infer<typeof profileSchema>;
@@ -345,7 +347,8 @@ export function ProfilePage() {
 export function VerificationPage() {
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
-  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [frontDocumentFile, setFrontDocumentFile] = useState<File | null>(null);
+  const [backDocumentFile, setBackDocumentFile] = useState<File | null>(null);
   const verificationQuery = useQuery({
     queryKey: ["my-verification"],
     queryFn: () => verificationApi.getMine()
@@ -353,13 +356,18 @@ export function VerificationPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting }
+    formState: { errors, isSubmitting },
+    watch
   } = useForm<VerificationValues>({
     resolver: zodResolver(verificationSchema),
     defaultValues: {
-      documentType: "government_id"
+      documentType: "aadhaar",
+      nameOnDocument: "",
+      documentNumberLast4: ""
     }
   });
+  const documentType = watch("documentType");
+  const needsBackUpload = documentType === "aadhaar" || documentType === "driving_license" || documentType === "voter_id";
 
   const status = verificationQuery.data?.status ?? "not_submitted";
   const resubmissionAllowedAt = verificationQuery.data?.resubmissionAllowedAt;
@@ -371,8 +379,8 @@ export function VerificationPage() {
     <div className="page-shell">
       <PageHeader
         eyebrow="Verification"
-        title="KYC-lite verification"
-        description="Submit a simple identity document to unlock verified trust badges across profiles and listings."
+        title="Identity verification"
+        description="Submit a supported Indian identity document so admins can review your profile more seriously before unlocking verified trust badges."
       />
 
       <div className="detail-grid">
@@ -380,6 +388,9 @@ export function VerificationPage() {
           <h3>Current status</h3>
           <p>Status: {status}</p>
           <p>Submitted: {formatDate(verificationQuery.data?.createdAt)}</p>
+          {verificationQuery.data?.documentType ? <p>Document: {formatVerificationDocumentLabel(verificationQuery.data.documentType)}</p> : null}
+          {verificationQuery.data?.nameOnDocument ? <p>Name on document: {verificationQuery.data.nameOnDocument}</p> : null}
+          {verificationQuery.data?.documentNumberLast4 ? <p>ID ending: •••• {verificationQuery.data.documentNumberLast4}</p> : null}
           {verificationQuery.data?.rejectionReason ? <InlineNotice tone="danger">{verificationQuery.data.rejectionReason}</InlineNotice> : null}
           {status === "verified" ? <InlineNotice tone="success">Your profile is verified.</InlineNotice> : null}
           {status === "pending" ? <InlineNotice tone="info">Your submission is awaiting admin review.</InlineNotice> : null}
@@ -407,16 +418,27 @@ export function VerificationPage() {
             <form
               className="form-grid"
               onSubmit={handleSubmit(async (values) => {
-                if (!documentFile) {
-                  pushToast("Choose a document file first.", "error");
+                if (!frontDocumentFile) {
+                  pushToast("Upload the front side of the document first.", "error");
+                  return;
+                }
+
+                if (needsBackUpload && !backDocumentFile) {
+                  pushToast("Upload the back side of the document for this ID type.", "error");
                   return;
                 }
 
                 try {
-                  const documentUrl = await uploadsApi.uploadFile(documentFile, "kyc_document", "verification");
+                  const documentFrontUrl = await uploadsApi.uploadFile(frontDocumentFile, "kyc_document", "verification");
+                  const documentBackUrl = backDocumentFile
+                    ? await uploadsApi.uploadFile(backDocumentFile, "kyc_document", "verification")
+                    : undefined;
                   await verificationApi.submit({
                     documentType: values.documentType,
-                    documentUrl
+                    nameOnDocument: values.nameOnDocument.trim(),
+                    documentNumberLast4: values.documentNumberLast4.trim().toUpperCase(),
+                    documentFrontUrl,
+                    documentBackUrl
                   });
                   await queryClient.invalidateQueries({ queryKey: ["my-verification"] });
                   pushToast("Verification submitted.", "success");
@@ -427,19 +449,47 @@ export function VerificationPage() {
             >
               <Field label="Document type" error={errors.documentType?.message}>
                 <Select {...register("documentType")} disabled={isFormLocked}>
-                  <option value="government_id">Government ID</option>
+                  <option value="aadhaar">Aadhaar card</option>
                   <option value="passport">Passport</option>
-                  <option value="driver_license">Driver's license</option>
+                  <option value="driving_license">Driving licence</option>
+                  <option value="voter_id">Voter ID</option>
                 </Select>
               </Field>
-              <Field label="Document file">
+              <Field
+                label="Full name on document"
+                hint="Enter the name exactly as it appears on the ID you are uploading."
+                error={errors.nameOnDocument?.message}
+              >
+                <Input disabled={isFormLocked} placeholder="As shown on your ID" {...register("nameOnDocument")} />
+              </Field>
+              <Field
+                label="Document number (last 4)"
+                hint="For privacy, only enter the last 4 visible characters from the document number."
+                error={errors.documentNumberLast4?.message}
+              >
+                <Input disabled={isFormLocked} maxLength={4} placeholder="A123" {...register("documentNumberLast4")} />
+              </Field>
+              <InlineNotice tone="info">
+                Supported documents for this MVP are Aadhaar, passport, driving licence, and voter ID. Aadhaar, driving licence, and voter ID need both front and back uploads.
+              </InlineNotice>
+              <Field label="Front side document file">
                 <Input
                   type="file"
                   accept="image/*,application/pdf"
                   disabled={isFormLocked}
-                  onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)}
+                  onChange={(event) => setFrontDocumentFile(event.target.files?.[0] ?? null)}
                 />
               </Field>
+              {needsBackUpload ? (
+                <Field label="Back side document file">
+                  <Input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    disabled={isFormLocked}
+                    onChange={(event) => setBackDocumentFile(event.target.files?.[0] ?? null)}
+                  />
+                </Field>
+              ) : null}
               <Button type="submit" disabled={isSubmitting || isFormLocked}>
                 {isSubmitting
                   ? "Submitting..."
@@ -1522,13 +1572,25 @@ export function AdminVerificationsPage() {
               <strong>{verification.reviewerContext?.fullName || `User ${verification.userId.slice(-6)}`}</strong>
               <p>{verification.reviewerContext?.phone || "Phone not available"}</p>
               {verification.reviewerContext?.occupation ? <p>{verification.reviewerContext.occupation}</p> : null}
-              <p>Document: {verification.documentType}</p>
+              <p>Document: {formatVerificationDocumentLabel(verification.documentType)}</p>
+              <p>Name on ID: {verification.nameOnDocument}</p>
+              <p>ID ending: •••• {verification.documentNumberLast4}</p>
               <p>Status: {verification.status}</p>
               <p>Submitted: {formatDate(verification.createdAt)}</p>
               <div className="mini-actions">
-                <a className="button button-secondary" href={verification.documentUrl} target="_blank" rel="noreferrer">
-                  Open document
+                <a
+                  className="button button-secondary"
+                  href={verification.documentFrontUrl || verification.documentUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open front
                 </a>
+                {verification.documentBackUrl ? (
+                  <a className="button button-secondary" href={verification.documentBackUrl} target="_blank" rel="noreferrer">
+                    Open back
+                  </a>
+                ) : null}
               </div>
             </div>
             <div className="mini-actions">
@@ -1554,4 +1616,19 @@ export function AdminVerificationsPage() {
       </div>
     </div>
   );
+}
+
+function formatVerificationDocumentLabel(documentType: VerificationRecord["documentType"]): string {
+  switch (documentType) {
+    case "aadhaar":
+      return "Aadhaar card";
+    case "passport":
+      return "Passport";
+    case "driving_license":
+      return "Driving licence";
+    case "voter_id":
+      return "Voter ID";
+    default:
+      return documentType;
+  }
 }

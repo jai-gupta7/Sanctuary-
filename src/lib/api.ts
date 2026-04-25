@@ -290,7 +290,13 @@ export const uploadsApi = {
 
 export const verificationApi = {
   getMine: () => apiFetch<VerificationRecord | null>("/verifications/me", { auth: true }),
-  submit: (payload: { documentType: string; documentUrl: string }) =>
+  submit: (payload: {
+    documentType: "aadhaar" | "passport" | "driving_license" | "voter_id";
+    nameOnDocument: string;
+    documentNumberLast4: string;
+    documentFrontUrl: string;
+    documentBackUrl?: string;
+  }) =>
     apiFetch<VerificationRecord>("/verifications", {
       method: "POST",
       auth: true,

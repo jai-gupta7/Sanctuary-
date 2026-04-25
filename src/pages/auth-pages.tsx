@@ -5,11 +5,27 @@ import { z } from "zod";
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../lib/auth";
+import { formatIndianPhoneDisplay, normalizeIndianPhone } from "../lib/phone";
 import { useToast } from "../lib/toast";
 import { Button, ButtonLink, Card, Field, InlineNotice, Input, PageHeader } from "../components/ui";
 
 const requestOtpSchema = z.object({
-  phone: z.string().min(8, "Enter a valid phone number").max(20, "Enter a valid phone number")
+  phone: z
+    .string()
+    .trim()
+    .min(10, "Enter a valid Indian mobile number")
+    .max(20, "Enter a valid Indian mobile number")
+    .transform((value, context) => {
+      const normalized = normalizeIndianPhone(value);
+      if (!normalized) {
+        context.addIssue({
+          code: "custom",
+          message: "Enter a valid Indian mobile number"
+        });
+        return z.NEVER;
+      }
+      return normalized;
+    })
 });
 
 const verifyOtpSchema = z.object({
@@ -30,7 +46,7 @@ export function LoginPage() {
   } = useForm<RequestOtpValues>({
     resolver: zodResolver(requestOtpSchema),
     defaultValues: {
-      phone: pendingPhone
+      phone: pendingPhone ? formatIndianPhoneDisplay(pendingPhone) : ""
     }
   });
 
@@ -72,10 +88,10 @@ export function LoginPage() {
         >
           <Field
             label="Phone number"
-            hint="Use the same number you’ll use for sign-in and future sessions."
+            hint="Enter a valid Indian mobile number. We accept 10-digit mobile numbers and normalize them to +91 format."
             error={errors.phone?.message}
           >
-            <Input placeholder="+91 99999 99999" {...register("phone")} />
+            <Input inputMode="tel" placeholder="+91 98765 43210" {...register("phone")} />
           </Field>
 
           <div className="row-actions">
@@ -120,7 +136,7 @@ export function VerifyPage() {
         <PageHeader
           eyebrow="Verify OTP"
           title="Enter the code"
-          description={pendingPhone ? `We sent a code to ${pendingPhone}.` : "Request an OTP first, then come back here to verify it."}
+          description={pendingPhone ? `We sent a code to ${formatIndianPhoneDisplay(pendingPhone)}.` : "Request an OTP first, then come back here to verify it."}
         />
 
         {!pendingPhone ? (

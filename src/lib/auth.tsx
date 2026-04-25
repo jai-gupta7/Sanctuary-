@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { authApi, clearAuthTokens, getAuthTokens, setAuthTokens, usersApi } from "./api";
+import { normalizeIndianPhone } from "./phone";
 import type { CurrentUserPayload } from "./types";
 
 type AuthContextValue = {
@@ -29,15 +30,19 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<CurrentUserPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [pendingPhone, setPendingPhoneState] = useState(() => window.localStorage.getItem("shared-living-os.pending-phone") ?? "");
+  const [pendingPhone, setPendingPhoneState] = useState(() => {
+    const storedPhone = window.localStorage.getItem("shared-living-os.pending-phone") ?? "";
+    return normalizeIndianPhone(storedPhone) ?? "";
+  });
 
   const setPendingPhone = useCallback((phone: string) => {
-    setPendingPhoneState(phone);
-    if (!phone) {
+    const normalizedPhone = phone ? normalizeIndianPhone(phone) ?? phone : "";
+    setPendingPhoneState(normalizedPhone);
+    if (!normalizedPhone) {
       window.localStorage.removeItem("shared-living-os.pending-phone");
       return;
     }
-    window.localStorage.setItem("shared-living-os.pending-phone", phone);
+    window.localStorage.setItem("shared-living-os.pending-phone", normalizedPhone);
   }, []);
 
   const refreshCurrentUser = useCallback(async () => {
@@ -68,8 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const requestOtp = useCallback(
     async (phone: string) => {
-      const result = await authApi.requestOtp(phone);
-      setPendingPhone(phone);
+      const normalizedPhone = normalizeIndianPhone(phone) ?? phone;
+      const result = await authApi.requestOtp(normalizedPhone);
+      setPendingPhone(result.phone);
       return {
         expiresIn: result.expiresIn,
         devOtp: result.devOtp
@@ -80,7 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyOtp = useCallback(
     async (phone: string, otp: string) => {
-      const result = await authApi.verifyOtp(phone, otp);
+      const normalizedPhone = normalizeIndianPhone(phone) ?? phone;
+      const result = await authApi.verifyOtp(normalizedPhone, otp);
       setAuthTokens(result.tokens);
       setPendingPhone("");
       const me = await usersApi.getMe();
