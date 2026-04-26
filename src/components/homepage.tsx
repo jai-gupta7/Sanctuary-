@@ -1,406 +1,493 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-type Feature = {
-  title: string;
-  copy: string;
+import { listingsApi } from "../lib/api";
+import { useAuth } from "../lib/auth";
+import type { ListingRecord } from "../lib/types";
+
+type ProblemCard = {
   icon: string;
-};
-
-type StoryCard = {
   title: string;
   copy: string;
 };
 
-const features: Feature[] = [
+type JourneyStep = {
+  icon: string;
+  title: string;
+  copy: string;
+};
+
+type TrustCard = {
+  icon: string;
+  title: string;
+  copy: string;
+};
+
+type PreviewListing = {
+  id?: string;
+  title: string;
+  locality: string;
+  rent: string;
+  moveIn: string;
+  image?: string | null;
+  match: string;
+  vibe: string;
+  chips: string[];
+};
+
+const heroImage =
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuCUyx2Eoyu8jRJAAklfzt6jMTm7ZqgNOZYcJhRpc9E5YPmiicmuI5TdHIxvge-6dlsWn-l3P5yfYh0pZJg8Ll_X9LYvLfZywwCkR2uZQONmGw-5OgW5W-A7qexsy6Ek-M-SVKio8NLoE4LgS5E_ysfKjZwfkCc3HjGvzoIf5F-uIv7CMLQXdYiy3CiEXFlzCkaj9AxYdWC-OHp_H0CEgxFltWeG1ogCDquSyI4Goc8GO4ycgLfz9xT8iXf4IgbvwokTr7Vg3y6p-j0";
+
+const fallbackImages = [
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuAlgo5L3GTTMQr6-2CwlHA-rnME9Oks3iuFbsfYSoYBYZwCIMlWWRJqy7VgRDFNk4LiTF6aC_3tJ0ONrvwG8R9XIwJ5e4F7-BvRfZ0HVXFyxBtYxwBF3HL6dtkARFAacPjWiV9zxlaKbwsfh9PZYTEdu6N8djxyRhoDz2my5P9N-0pO4OP7XVQsTaC73PiGbIXWGHqlgqCApe2JPWSau80fbxN7quoJYLIgCiuWYDEr702fWCvkZ6YGgXMOKTXr9jAq8utst-eu-bs",
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuAqv-BmiMLsrXspTl0ohbaMDz5qRQs3HwluuNRIWBZuzeXdIfnyjv1LkgioNKnk_LLlYHuyFz5epFUdXFsAuOFmiLosodU-WHJftRdLj7OEwgB19qHItCx1d4CMPKudSq3DVx75L1yM1XORTisraopfxWlJPXbxCrdEesYOufSeeXdrrXFCW2uH5Y2YzJ9oBa6HKdcFMSbNNzrrJB6u6IrUH2yRBVQiIePBoacpr9W8MBVbuKVXSoauGch_Lu2IWebflKu8DEWvSq0",
+  "https://lh3.googleusercontent.com/aida-public/AB6AXuABcMIYWK-ePA6cODyBmICQw-FbftiNvoCU2BzcF2H6fpprZXREWKj6SD3UuBi76Tv862_i7x9kofOt-qB8r5_R7dQkiu-4QBMQPZ_bt642yjHcAb_VMfr58iCQYGb35SEuz5jg3fzABCwobQXoUa6Kd4SEyFN60AIOCm643Di05Fu2IpAyyGg75TSNARkv3vcDa78BlksxlQvOabu6mLB0qe4pWwJ9N0m3RaAkaZWr9FeZwwXfwcPmfQtCY4IwFTYyI3L2jeOdjXg"
+];
+
+const problemCards: ProblemCard[] = [
   {
-    icon: "✓",
-    title: "Verified Profiles",
-    copy: "Talk to real people with stronger trust signals before you invest time or money."
+    icon: "image_not_supported",
+    title: "Listings lack context",
+    copy: "Photos of empty rooms don't tell you how people actually live or if your routines clash."
   },
   {
-    icon: "◎",
-    title: "Smart Matching",
-    copy: "Find people who fit your routines, habits, and house expectations, not just your budget."
+    icon: "forum",
+    title: "WhatsApp chaos",
+    copy: "Endless unorganized chats, lost details, and ghosting make the search exhausting."
   },
   {
-    icon: "₹",
-    title: "Secure Payments",
-    copy: "Future-ready money flows help deposits and shared costs feel more visible and less awkward."
-  },
-  {
-    icon: "⌂",
-    title: "Easy Living Management",
-    copy: "Move in with less confusion and keep the home coordinated once the decision is made."
+    icon: "timer",
+    title: "Stressful replacements",
+    copy: "Finding a reliable replacement when someone leaves is a high-pressure gamble."
   }
 ];
 
-const painPoints: StoryCard[] = [
+const journeySteps: JourneyStep[] = [
   {
-    title: "Listings are scattered everywhere",
-    copy: "You jump between group chats, brokers, stories, and outdated apps just to see what is actually available."
+    icon: "search",
+    title: "Step 1",
+    copy: "Browse structured listings"
   },
   {
-    title: "Trust is too thin",
-    copy: "You are asked to make a life-impacting decision without enough confidence in who you are talking to."
+    icon: "compare_arrows",
+    title: "Step 2",
+    copy: "Compare compatibility"
   },
   {
-    title: "Urgency ruins good decisions",
-    copy: "When someone leaves a flat, speed takes over and compatibility becomes an afterthought."
+    icon: "edit_document",
+    title: "Step 3",
+    copy: "Apply with short intro"
   },
   {
-    title: "Money creates stress fast",
-    copy: "Deposits, rent timing, and shared expenses turn simple coordination into uncomfortable friction."
+    icon: "checklist",
+    title: "Step 4",
+    copy: "Owner shortlists serious applicants"
+  },
+  {
+    icon: "lock_open",
+    title: "Step 5",
+    copy: "Contact unlocks only after acceptance"
+  },
+  {
+    icon: "check_circle",
+    title: "Step 6",
+    copy: "Move forward with clarity"
   }
 ];
 
-const steps = [
-  "Create your profile",
-  "Browse matching homes",
-  "Compare trust + fit",
-  "Connect instantly",
-  "Move in smoothly"
-];
-
-const cities = [
+const trustCards: TrustCard[] = [
   {
-    name: "Delhi NCR",
-    stat: "Fast replacement demand",
-    copy: "Ideal for high-churn neighborhoods where people need trusted options quickly."
+    icon: "phonelink_lock",
+    title: "Phone OTP Login",
+    copy: "Real numbers only to eliminate spam accounts."
   },
   {
-    name: "Bengaluru",
-    stat: "Strong shared-living density",
-    copy: "Built for students and professionals navigating constant move-ins and flatmate changes."
+    icon: "verified",
+    title: "Verified Indicators",
+    copy: "Clear signals when profiles have completed verification checks."
+  },
+  {
+    icon: "chat_bubble_off",
+    title: "No Random Chats",
+    copy: "Structured applications replace chaotic and unsolicited messaging."
+  },
+  {
+    icon: "key",
+    title: "Contact Unlock",
+    copy: "Location and contact details are only revealed after accepting an application."
+  },
+  {
+    icon: "assignment_ind",
+    title: "Profile Completion",
+    copy: "Mandatory fields ensure everyone provides enough context."
+  },
+  {
+    icon: "admin_panel_settings",
+    title: "Admin Moderation",
+    copy: "Active review to maintain quality and community standards."
   }
 ];
+
+const fallbackListings: PreviewListing[] = [
+  {
+    title: "Modern Master Bedroom",
+    locality: "Koramangala",
+    rent: "INR 28,000",
+    moveIn: "Immediate",
+    image: fallbackImages[0],
+    match: "92% Match",
+    vibe: "Quiet working professionals",
+    chips: ["Quiet", "Vegetarian"]
+  },
+  {
+    title: "Spacious Room in 3BHK",
+    locality: "Indiranagar",
+    rent: "INR 32,000",
+    moveIn: "Nov 1",
+    image: fallbackImages[1],
+    match: "88% Match",
+    vibe: "Social but weekday-focused",
+    chips: ["Social", "WFH Friendly"]
+  },
+  {
+    title: "Cozy Room for Female",
+    locality: "HSR Layout",
+    rent: "INR 22,000",
+    moveIn: "Oct 15",
+    image: fallbackImages[2],
+    match: "85% Match",
+    vibe: "Quiet working professionals",
+    chips: ["Early sleeper", "No parties"]
+  }
+];
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0
+  }).format(value);
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short"
+  }).format(new Date(value));
+}
+
+function mapListingPreview(listing: ListingRecord, index: number): PreviewListing {
+  const chips = [
+    listing.compatibilityProfile?.socialVibe,
+    listing.compatibilityProfile?.wfhFriendly,
+    listing.compatibilityProfile?.cleanlinessLevel,
+    listing.idealFlatmateProfile?.preferredPersonality
+  ]
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((chip) => String(chip).replace(/_/g, " "));
+
+  return {
+    id: listing._id,
+    title: listing.title,
+    locality: listing.propertyDetails?.city || listing.locationText,
+    rent: formatCurrency(listing.rent),
+    moveIn: formatDate(listing.moveInDate),
+    image: listing.coverImageUrl || fallbackImages[index % fallbackImages.length],
+    match: `${92 - index * 4}% Match`,
+    vibe: listing.idealFlatmateProfile?.bestSuitedFor || "Compatibility details included",
+    chips: chips.length ? chips : ["Structured", "Verified flow"]
+  };
+}
+
+function Icon({ name }: { name: string }) {
+  return (
+    <span className="material-symbols-outlined" aria-hidden="true">
+      {name}
+    </span>
+  );
+}
 
 export function Homepage() {
+  const { isAuthenticated } = useAuth();
+  const createListingTo = isAuthenticated ? "/listings/new" : "/auth/login";
+
+  const previewQuery = useQuery({
+    queryKey: ["homepage-listing-preview"],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      params.set("page", "1");
+      params.set("limit", "3");
+      return listingsApi.list(params);
+    },
+    staleTime: 60_000,
+    retry: false
+  });
+
+  const liveListings = previewQuery.data?.items.slice(0, 3).map(mapListingPreview) ?? [];
+  const listings = liveListings.length ? liveListings : fallbackListings;
+
   return (
-    <div className="app-shell">
-      <header className="site-header">
-        <a className="brand" href="#hero" aria-label="Shared Living OS homepage">
-          <span className="brand-badge">S</span>
-          <span className="brand-text">
-            <strong>Shared Living OS</strong>
-            <small>Find your people, faster</small>
-          </span>
-        </a>
-
-        <nav className="desktop-nav" aria-label="Primary">
-          <a href="#problem">Problem</a>
-          <a href="#solution">Solution</a>
-          <a href="#features">Features</a>
-          <a href="#cta">Vision</a>
+    <div className="kin-home">
+      <header className="kin-nav">
+        <Link className="kin-logo" to="/">
+          Shared Living OS
+        </Link>
+        <nav className="kin-nav-links" aria-label="Primary">
+          <Link className="kin-nav-active" to="/explore">
+            Explore
+          </Link>
+          <Link to={createListingTo}>List a Home</Link>
         </nav>
-
-        <div className="header-actions">
-          <Link className="button button-secondary" to="/explore">
-            Explore Listings
-          </Link>
-          <Link className="button button-primary desktop-primary" to="/auth/login">
-            Sign In
-          </Link>
-        </div>
+        <Link className="kin-login" to={isAuthenticated ? "/dashboard" : "/auth/login"}>
+          {isAuthenticated ? "Dashboard" : "Login"}
+        </Link>
       </header>
 
       <main>
-        <section className="hero-section" id="hero">
-          <div className="hero-copy">
-            <div className="eyebrow-row">
-              <span className="eyebrow-badge">Verified shared-living platform</span>
-              <span className="eyebrow-note">Delhi NCR + Bengaluru</span>
-            </div>
-
-            <h1>Find the right flatmates. Not just any flat.</h1>
-            <p className="hero-subcopy">
-              Verified people. Better matches. No chaos during move-ins. Shared Living OS is designed to make shared living feel
-              like a smart decision, not a rushed compromise.
+        <section className="kin-hero">
+          <div className="kin-hero-copy">
+            <h1>Find flatmates you'll actually live well with.</h1>
+            <p>
+              Structured matching, verified profiles, and guided move-in so you don't have to guess who you're living with.
             </p>
-
-            <div className="hero-buttons">
-              <Link className="button button-primary" to="/explore">
+            <div className="kin-actions">
+              <Link className="kin-btn kin-btn-primary" to="/explore">
                 Explore Listings
               </Link>
-              <Link className="button button-tertiary" to="/auth/login">
-                Sign In to Start
+              <Link className="kin-btn kin-btn-secondary" to={createListingTo}>
+                Create Listing
               </Link>
             </div>
-
-            <div className="hero-stats">
-              <article>
-                <strong>Trust-first</strong>
-                <span>designed to reduce uncertainty before decisions are made</span>
-              </article>
-              <article>
-                <strong>Compatibility-led</strong>
-                <span>built around lifestyle fit, not just rent and location</span>
-              </article>
-              <article>
-                <strong>Move-in clarity</strong>
-                <span>a calmer system for discovery, trust, and handoff</span>
-              </article>
+            <div className="kin-compat-pill">
+              <Icon name="bolt" />
+              <span>92% compatibility based on lifestyle preferences</span>
             </div>
+            <small>Built for real-life compatibility, not just availability.</small>
           </div>
 
-          <div className="hero-product">
-            <div className="product-card phone-shell">
-              <div className="phone-top">
-                <span className="phone-pill">Best match today</span>
-                <span className="phone-time">8 min ago</span>
+          <div className="kin-hero-media">
+            <img alt="Modern shared apartment interior" src={heroImage} />
+            <div className="kin-match-card">
+              <div className="kin-match-score">92%</div>
+              <div>
+                <strong>Compatibility Match</strong>
+                <span>Based on lifestyle preferences</span>
               </div>
+            </div>
+          </div>
+        </section>
 
-              <div className="listing-card">
-                <div className="listing-image">
-                  <div className="listing-chip">Verified household</div>
-                  <div className="listing-chip alt-chip">Immediate move-in</div>
+        <section className="kin-quote-section">
+          <p>
+            "Shared living doesn't fail because of homes—it fails
+            because of <em>mismatched people</em>, <em>unclear expectations</em>,
+            and <em>rushed decisions</em>."
+          </p>
+        </section>
+
+        <section className="kin-section">
+          <div className="kin-section-heading">
+            <h2>The old way is broken.</h2>
+          </div>
+          <div className="kin-problem-grid">
+            {problemCards.map((card) => (
+              <article className="kin-info-card" key={card.title}>
+                <Icon name={card.icon} />
+                <h3>{card.title}</h3>
+                <p>{card.copy}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="kin-section kin-work-section">
+          <div className="kin-section-heading">
+            <h2>How It Works</h2>
+            <p>A structured path to finding your next home.</p>
+          </div>
+          <div className="kin-journey-wrap">
+            <div className="kin-journey-line" />
+            <div className="kin-journey">
+              {journeySteps.map((step, index) => (
+                <article className="kin-step" key={step.title}>
+                  <div className={`kin-step-icon${index === 0 || index === journeySteps.length - 1 ? " kin-step-active" : ""}`}>
+                    <Icon name={step.icon} />
+                  </div>
+                  <strong>{step.title}</strong>
+                  <span>{step.copy}</span>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="kin-listing-difference">
+          <div>
+            <h2>Listings that actually tell you what matters.</h2>
+            <p>
+              Better input leads to better matches. We capture the lifestyle details you need to know before moving in
+              together.
+            </p>
+          </div>
+          <article className="kin-feature-listing">
+            <div className="kin-feature-top">
+              <div>
+                <h3>Sunny Room in Indiranagar</h3>
+                <p>Move-in: Oct 1st - INR 25,000/mo</p>
+              </div>
+              <span>
+                <Icon name="bolt" />
+                95% Match
+              </span>
+            </div>
+            <div className="kin-feature-grid">
+              <div>
+                <small>Flat vibe</small>
+                <strong>Quiet working professionals</strong>
+              </div>
+              <div>
+                <small>Household lifestyle</small>
+                <div className="kin-chip-row">
+                  <span>Quiet weekdays</span>
+                  <span>WFH Friendly</span>
                 </div>
-
-                <div className="listing-details">
-                  <div>
-                    <h2>Koramangala 3BHK</h2>
-                    <p>2 working professionals · Fully furnished · ₹17k/month</p>
-                  </div>
-
-                  <div className="match-meter">
-                    <div className="meter-head">
-                      <strong>92% compatibility</strong>
-                      <span>Excellent fit</span>
-                    </div>
-                    <div className="meter-bar">
-                      <span />
-                    </div>
-                  </div>
-
-                  <div className="signal-grid">
-                    <div>
-                      <strong>Trust</strong>
-                      <span>ID + work verified</span>
-                    </div>
-                    <div>
-                      <strong>Lifestyle</strong>
-                      <span>Clean home, early sleepers</span>
-                    </div>
-                    <div>
-                      <strong>Money</strong>
-                      <span>Deposit visibility</span>
-                    </div>
-                    <div>
-                      <strong>Decision</strong>
-                      <span>Chat before shortlist</span>
-                    </div>
-                  </div>
+              </div>
+              <div>
+                <small>Ideal flatmate</small>
+                <div className="kin-chip-row">
+                  <span>Early sleeper</span>
+                  <span>Clean and tidy</span>
                 </div>
               </div>
-
-              <div className="mini-panels">
-                <article>
-                  <strong>3</strong>
-                  <span>good matches nearby</span>
-                </article>
-                <article>
-                  <strong>Verified</strong>
-                  <span>profiles highlighted first</span>
-                </article>
-              </div>
             </div>
-          </div>
+          </article>
         </section>
 
-        <section className="problem-section section-block" id="problem">
-          <div className="section-intro">
-            <span className="section-tag">The problem</span>
-            <h2>The process is messy long before the move-in happens.</h2>
+        <section className="kin-section">
+          <div className="kin-section-heading">
+            <small>How trust works</small>
+            <h2>Trust isn't assumed. It's structured.</h2>
             <p>
-              Shared living breaks down because discovery, trust, compatibility, and money are all handled in separate places.
-              People do not need more listings. They need a better system.
+              Safety and privacy aren't afterthoughts. Our system ensures you only connect with serious, verified individuals.
             </p>
           </div>
-
-          <div className="story-grid">
-            {painPoints.map((item, index) => (
-              <article className="story-card" key={item.title}>
-                <span className="story-index">0{index + 1}</span>
-                <h3>{item.title}</h3>
-                <p>{item.copy}</p>
+          <div className="kin-trust-grid">
+            {trustCards.map((card) => (
+              <article className="kin-trust-card" key={card.title}>
+                <Icon name={card.icon} />
+                <div>
+                  <h3>{card.title}</h3>
+                  <p>{card.copy}</p>
+                </div>
               </article>
             ))}
           </div>
         </section>
 
-        <section className="solution-section section-block" id="solution">
-          <div className="section-intro compact-intro">
-            <span className="section-tag">The solution</span>
-            <h2>A better system for choosing who you live with.</h2>
+        <section className="kin-replacement">
+          <h2>Flatmate replacement, without last‑minute panic.</h2>
+          <p>Structured applications, faster filtering, and better decisions when time matters.</p>
+          <div className="kin-check-panel">
             <p>
-              Shared Living OS makes the full decision journey feel clear. You can discover homes, compare fit, verify people,
-              and move forward with better confidence.
+              <Icon name="check_circle" />
+              Structured applications mean less back-and-forth.
+            </p>
+            <p>
+              <Icon name="check_circle" />
+              Faster filtering to find people who actually match your vibe.
+            </p>
+            <p>
+              <Icon name="check_circle" />
+              Better decisions even under time pressure.
             </p>
           </div>
+          <Link className="kin-learn-more" to="/explore">
+            Learn more <Icon name="arrow_forward" />
+          </Link>
+        </section>
 
-          <div className="solution-layout">
-            <div className="solution-stack">
-              <article className="solution-card">
-                <strong>Discovery</strong>
-                <p>Explore listings with household context instead of fragmented noise.</p>
-              </article>
-              <article className="solution-card">
-                <strong>Matching</strong>
-                <p>See compatibility built around lifestyle, routine, and expectations.</p>
-              </article>
-              <article className="solution-card">
-                <strong>Trust</strong>
-                <p>Verified identities reduce uncertainty before the first serious conversation.</p>
-              </article>
-              <article className="solution-card">
-                <strong>Financial clarity</strong>
-                <p>Future-ready flows reduce confusion around deposits and shared money moments.</p>
-              </article>
-            </div>
+        <section className="kin-section">
+          <div className="kin-section-heading">
+            <h2>Recently Listed</h2>
+            <p>Discover homes curated for compatibility.</p>
+          </div>
+          {previewQuery.isError ? (
+            <p className="kin-preview-note">Marketplace preview is taking a moment. You can still explore listings.</p>
+          ) : null}
+          <div className="kin-preview-grid">
+            {listings.map((listing) => {
+              const content = (
+                <>
+                  <div className="kin-preview-image">
+                    {listing.image ? <img alt="" src={listing.image} /> : null}
+                    <span>
+                      <Icon name="bolt" />
+                      {listing.match}
+                    </span>
+                  </div>
+                  <div className="kin-preview-body">
+                    <small>{listing.locality}</small>
+                    <h3>{listing.title}</h3>
+                    <p>{listing.vibe}</p>
+                    <div className="kin-chip-row">
+                      {listing.chips.map((chip) => (
+                        <span key={chip}>{chip}</span>
+                      ))}
+                    </div>
+                    <div className="kin-card-footer">
+                      <strong>
+                        {listing.rent} <small>/mo</small>
+                      </strong>
+                      <em>{listing.moveIn}</em>
+                    </div>
+                  </div>
+                </>
+              );
 
-            <div className="dashboard-card">
-              <div className="dashboard-top">
-                <strong>Why users convert</strong>
-                <span>because the value is obvious fast</span>
-              </div>
-              <div className="dashboard-grid">
-                <article>
-                  <strong>Clear fit</strong>
-                  <p>Compatibility before commitment</p>
+              return listing.id ? (
+                <Link className="kin-preview-card" key={listing.id} to={`/listings/${listing.id}`}>
+                  {content}
+                </Link>
+              ) : (
+                <article className="kin-preview-card" key={listing.title}>
+                  {content}
                 </article>
-                <article>
-                  <strong>Real trust</strong>
-                  <p>Verified people, visible signals</p>
-                </article>
-                <article>
-                  <strong>Faster choice</strong>
-                  <p>Less panic, better decisions</p>
-                </article>
-                <article>
-                  <strong>Smoother move-in</strong>
-                  <p>Money and logistics feel coordinated</p>
-                </article>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </section>
 
-        <section className="features-section section-block" id="features">
-          <div className="section-intro compact-intro">
-            <span className="section-tag">Feature highlights</span>
-            <h2>Everything on the page should answer: why trust this product?</h2>
+        <section className="kin-final-cta">
+          <h2>Find your next flatmate—without the guesswork.</h2>
+          <p>Browse compatible homes or list your space with clarity from day one.</p>
+          <div className="kin-actions kin-actions-center">
+            <Link className="kin-btn kin-btn-light" to="/explore">
+              Explore Listings
+              <Icon name="arrow_forward" />
+            </Link>
+            <Link className="kin-btn kin-btn-outline-light" to={createListingTo}>
+              Create a Listing
+              <Icon name="arrow_forward" />
+            </Link>
           </div>
-
-          <div className="feature-grid">
-            {features.map((feature) => (
-              <article className="feature-card" key={feature.title}>
-                <span className="feature-icon">{feature.icon}</span>
-                <h3>{feature.title}</h3>
-                <p>{feature.copy}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="how-section section-block" id="how">
-          <div className="section-intro compact-intro">
-            <span className="section-tag">How it works</span>
-            <h2>Simple enough to understand in one scroll.</h2>
-          </div>
-
-          <div className="steps-row">
-            {steps.map((step, index) => (
-              <article className="step-card" key={step}>
-                <span className="step-number">0{index + 1}</span>
-                <p>{step}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="proof-section section-block">
-          <div className="proof-highlight">
-            <span className="section-tag">Why this matters</span>
-            <h2>We are showing the direction before the product is fully live.</h2>
-            <p>
-              This homepage explains the vision clearly, while the rest of the site now opens real MVP 1 flows for onboarding,
-              browsing, listing, verification, chat, and moderation.
-            </p>
-          </div>
-
-          <div className="proof-cards">
-            <article className="proof-card large-proof">
-              <strong>Built for trust</strong>
-              <span>identity signals and clearer decisions sit at the center of the product idea</span>
-            </article>
-            <article className="proof-card">
-              <p>Discovery, matching, trust, and money should not live in separate fragmented tools.</p>
-              <strong>Category gap we are addressing</strong>
-            </article>
-            <article className="proof-card">
-              <p>Delhi NCR and Bengaluru are the first focus cities because shared-living churn is high and the pain is immediate.</p>
-              <strong>Initial launch focus</strong>
-            </article>
-          </div>
-        </section>
-
-        <section className="cities-section section-block" id="cities">
-          <div className="section-intro compact-intro">
-            <span className="section-tag">City focus</span>
-            <h2>Starting where shared living is high-stakes and high-frequency.</h2>
-          </div>
-
-          <div className="city-grid">
-            {cities.map((city) => (
-              <article className="city-card" key={city.name}>
-                <span className="city-stat">{city.stat}</span>
-                <h3>{city.name}</h3>
-                <p>{city.copy}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="cta-section section-block" id="cta">
-          <div className="cta-card">
-            <span className="section-tag">What comes next</span>
-            <h2>Try the MVP flow.</h2>
-            <p>
-              The homepage stays vision-led, but the product routes are now live enough to browse listings, sign in, complete a
-              profile, and move into the first working user journeys.
-            </p>
-            <div className="hero-buttons centered-buttons">
-              <Link className="button button-primary" to="/explore">
-                Explore Listings
-              </Link>
-              <Link className="button button-secondary" to="/auth/login">
-                Sign In
-              </Link>
-            </div>
-          </div>
+          <small>No spam. No random chats. Only relevant people who match your lifestyle.</small>
         </section>
       </main>
 
-      <footer className="site-footer">
+      <footer className="kin-footer">
         <div>
           <strong>Shared Living OS</strong>
-          <p>Built to make shared living decisions feel smarter from the first scroll.</p>
+          <p>Structured harmony for discerning professionals.</p>
         </div>
-        <div className="footer-nav">
+        <nav aria-label="Footer">
           <Link to="/">About</Link>
-          <Link to="/explore">Explore</Link>
-          <Link to="/auth/login">Sign In</Link>
-          <a href="#hero">Back to top</a>
-        </div>
+          <Link to="/explore">Safety</Link>
+          <Link to="/">Community Rules</Link>
+          <Link to="/">Privacy</Link>
+          <Link to="/">Terms</Link>
+        </nav>
       </footer>
-
-      <div className="mobile-cta">
-        <Link className="button button-primary" to="/explore">
-          Explore Listings
-        </Link>
-        <Link className="button button-secondary" to="/auth/login">
-          Sign In
-        </Link>
-      </div>
     </div>
   );
 }
