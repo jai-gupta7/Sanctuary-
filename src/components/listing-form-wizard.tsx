@@ -844,6 +844,10 @@ export function ListingFormWizard() {
   }, [currentUser?.eligibility.eligible, draft, prospectiveImageCount]);
 
   const publishReadiness = useMemo(() => STEP_ORDER.flatMap((stepKey) => stepIssues[stepKey]), [stepIssues]);
+  const publishReadinessByStep = useMemo(
+    () => STEP_META.map((stepMeta) => ({ ...stepMeta, issues: stepIssues[stepMeta.id] })).filter((item) => item.issues.length),
+    [stepIssues]
+  );
 
   const currentStepIndex = STEP_ORDER.indexOf(step);
 
@@ -869,6 +873,15 @@ export function ListingFormWizard() {
     }
 
     await saveMutation.mutateAsync({ mode: "save" });
+  };
+
+  const handleContinue = () => {
+    const currentIssues = stepIssues[step];
+    if (currentIssues.length) {
+      pushToast("Fix this step before continuing, or save it as a draft and come back later.", "error");
+      return;
+    }
+    setStep(STEP_ORDER[currentStepIndex + 1]);
   };
 
   const stepBadges = STEP_META.map((item, index) => {
@@ -901,7 +914,7 @@ export function ListingFormWizard() {
           </Button>
         ) : null}
         {currentStepIndex < STEP_ORDER.length - 1 ? (
-          <Button onClick={() => setStep(STEP_ORDER[currentStepIndex + 1])} type="button">
+          <Button onClick={handleContinue} type="button">
             Continue
           </Button>
         ) : (
@@ -1698,9 +1711,17 @@ export function ListingFormWizard() {
               </div>
 
               {publishReadiness.length ? (
-                <InlineNotice tone="warning">
-                  Missing before this can go live: {publishReadiness.join(" ")}
-                </InlineNotice>
+                <div className="publish-readiness-list">
+                  <InlineNotice tone="warning">
+                    Missing before this can go live. Jump to the section below, fix it, then return to review.
+                  </InlineNotice>
+                  {publishReadinessByStep.map((item) => (
+                    <button className="publish-readiness-item" key={item.id} onClick={() => setStep(item.id)} type="button">
+                      <strong>{item.title}</strong>
+                      <span>{item.issues.join(" ")}</span>
+                    </button>
+                  ))}
+                </div>
               ) : (
                 <InlineNotice tone="success">
                   The listing looks publish-ready and compatibility-rich.

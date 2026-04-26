@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
@@ -211,6 +212,26 @@ function Icon({ name }: { name: string }) {
 export function Homepage() {
   const { isAuthenticated } = useAuth();
   const createListingTo = isAuthenticated ? "/listings/new" : "/auth/login";
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [drawerClosing, setDrawerClosing] = useState(false);
+
+  const closeMobileMenu = useCallback(() => {
+    setDrawerClosing(true);
+    setTimeout(() => {
+      setMobileMenuOpen(false);
+      setDrawerClosing(false);
+    }, 200);
+  }, []);
+
+  // Lock body scroll when drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileMenuOpen]);
 
   const previewQuery = useQuery({
     queryKey: ["homepage-listing-preview"],
@@ -242,7 +263,44 @@ export function Homepage() {
         <Link className="kin-login" to={isAuthenticated ? "/dashboard" : "/auth/login"}>
           {isAuthenticated ? "Dashboard" : "Login"}
         </Link>
+        <button
+          className="kin-mobile-menu-btn"
+          aria-label="Open menu"
+          onClick={() => setMobileMenuOpen(true)}
+        >
+          <Icon name="menu" />
+        </button>
       </header>
+
+      {mobileMenuOpen && (
+        <div className="kin-mobile-drawer" {...(drawerClosing ? { "data-closing": "" } : {})}>
+          <div className="kin-drawer-header">
+            <span className="kin-logo">Shared Living OS</span>
+            <button className="kin-mobile-menu-btn" aria-label="Close menu" onClick={closeMobileMenu}>
+              <Icon name="close" />
+            </button>
+          </div>
+          <nav className="kin-drawer-links" aria-label="Mobile navigation">
+            <Link to="/explore" onClick={closeMobileMenu}>
+              <Icon name="search" />
+              Explore Listings
+            </Link>
+            <Link to={createListingTo} onClick={closeMobileMenu}>
+              <Icon name="add_home" />
+              List a Home
+            </Link>
+            <Link to={isAuthenticated ? "/dashboard" : "/auth/login"} onClick={closeMobileMenu}>
+              <Icon name={isAuthenticated ? "dashboard" : "login"} />
+              {isAuthenticated ? "Dashboard" : "Login"}
+            </Link>
+          </nav>
+          <div className="kin-drawer-cta">
+            <Link className="kin-btn kin-btn-primary" to="/explore" onClick={closeMobileMenu}>
+              Explore Listings
+            </Link>
+          </div>
+        </div>
+      )}
 
       <main>
         <section className="kin-hero">
@@ -260,13 +318,24 @@ export function Homepage() {
               </Link>
             </div>
             <div className="kin-compat-pill">
-              <Icon name="bolt" />
-              <span>92% compatibility based on lifestyle preferences</span>
+              <Icon name="verified" />
+              <span>92% compatibility based on lifestyle</span>
             </div>
             <small>Built for real-life compatibility, not just availability.</small>
           </div>
 
           <div className="kin-hero-media">
+            <img alt="Modern shared apartment interior" src={heroImage} />
+            <div className="kin-match-card">
+              <div className="kin-match-score">92%</div>
+              <div>
+                <strong>Compatibility Match</strong>
+                <span>Based on lifestyle preferences</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="kin-hero-mobile-image">
             <img alt="Modern shared apartment interior" src={heroImage} />
             <div className="kin-match-card">
               <div className="kin-match-score">92%</div>
@@ -286,7 +355,7 @@ export function Homepage() {
           </p>
         </section>
 
-        <section className="kin-section">
+        <section className="kin-section kin-problems-section">
           <div className="kin-section-heading">
             <h2>The old way is broken.</h2>
           </div>
@@ -299,6 +368,43 @@ export function Homepage() {
               </article>
             ))}
           </div>
+        </section>
+
+        {/* Mobile Featured Listing Card (shown only on mobile, between quote and How It Works) */}
+        <section className="kin-mobile-featured">
+          <div>
+            <h2>Listings That Matter</h2>
+            <p>Handpicked for your preference.</p>
+          </div>
+          <article className="kin-mobile-featured-card">
+            <div className="kin-mobile-featured-image">
+              <img alt="Sunny room in Indiranagar" src={fallbackImages[1]} />
+              <span className="kin-mobile-featured-badge">
+                <Icon name="bolt" />
+                95% Match
+              </span>
+            </div>
+            <div className="kin-mobile-featured-body">
+              <div className="kin-mobile-featured-meta">
+                <div>
+                  <h3>Sunny Room in Indiranagar</h3>
+                  <p>Quiet working professionals</p>
+                </div>
+                <div className="kin-mobile-featured-price">
+                  <strong>₹22,000</strong>
+                  <span>/ month</span>
+                </div>
+              </div>
+              <div className="kin-mobile-featured-chips">
+                <span className="kin-chip-green">Vegetarian</span>
+                <span className="kin-chip-amber">Early Riser</span>
+                <span className="kin-chip-neutral">No Pets</span>
+              </div>
+              <Link className="kin-btn kin-btn-primary kin-btn-full" to="/explore">
+                View Full Compatibility
+              </Link>
+            </div>
+          </article>
         </section>
 
         <section className="kin-section kin-work-section">
@@ -319,6 +425,28 @@ export function Homepage() {
                 </article>
               ))}
             </div>
+          </div>
+          <div className="kin-journey-mobile">
+            {journeySteps.map((step, index) => (
+              <div className="kin-jm-step" key={step.title}>
+                <div className={`kin-jm-circle${index === 4 ? " kin-jm-circle-lock" : ""}`}>
+                  {index === 4 ? (
+                    <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1", fontSize: "20px" }}>lock</span>
+                  ) : (
+                    <span className="kin-jm-num">{index + 1}</span>
+                  )}
+                </div>
+                <div className="kin-jm-text">
+                  <h4>{step.copy}</h4>
+                  <p>{step.title === "Step 1" ? "Find homes that list rules and lifestyles clearly from day one."
+                    : step.title === "Step 2" ? "See exactly where you align and where you might need to compromise."
+                    : step.title === "Step 3" ? "Send a focused application that highlights your living habits."
+                    : step.title === "Step 4" ? "No noise. Owners only review serious applicants who match the vibe."
+                    : step.title === "Step 5" ? "Privacy first. Personal details are shared only after mutual interest."
+                    : "The final handshake is easier when you've already verified the fit."}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -364,7 +492,7 @@ export function Homepage() {
           </article>
         </section>
 
-        <section className="kin-section">
+        <section className="kin-section kin-trust-section">
           <div className="kin-section-heading">
             <small>How trust works</small>
             <h2>Trust isn't assumed. It's structured.</h2>
@@ -407,7 +535,7 @@ export function Homepage() {
           </Link>
         </section>
 
-        <section className="kin-section">
+        <section className="kin-section kin-recently-section">
           <div className="kin-section-heading">
             <h2>Recently Listed</h2>
             <p>Discover homes curated for compatibility.</p>
@@ -488,6 +616,26 @@ export function Homepage() {
           <Link to="/">Terms</Link>
         </nav>
       </footer>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="kin-bottom-nav" aria-label="Mobile tab bar">
+        <Link to="/explore" className="kin-bottom-tab kin-bottom-tab-active">
+          <Icon name="explore" />
+          <span>Explore</span>
+        </Link>
+        <Link to="/dashboard" className="kin-bottom-tab">
+          <Icon name="diversity_3" />
+          <span>Matches</span>
+        </Link>
+        <Link to="/dashboard" className="kin-bottom-tab">
+          <Icon name="chat_bubble" />
+          <span>Messages</span>
+        </Link>
+        <Link to={isAuthenticated ? "/dashboard" : "/auth/login"} className="kin-bottom-tab">
+          <Icon name="account_circle" />
+          <span>Profile</span>
+        </Link>
+      </nav>
     </div>
   );
 }

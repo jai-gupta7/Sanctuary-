@@ -48,7 +48,8 @@ function mapListingCard(listing: ListingCardVM | any): ListingCardVM {
     rent: listing.rent,
     deposit: listing.deposit,
     moveInDate: listing.moveInDate,
-    status: listing.status
+    status: listing.status,
+    coverImageUrl: listing.coverImageUrl ?? null
   };
 }
 
@@ -99,6 +100,7 @@ function ListingSummaryCard({ listing }: { listing: ListingCardVM }) {
   return (
     <Card className="listing-summary-card">
       <div className="listing-card-visual">
+        {listing.coverImageUrl ? <img className="listing-card-photo" alt={listing.title} src={listing.coverImageUrl} /> : null}
         <div className="listing-summary-top">
           <Badge tone={listing.status === "active" ? "success" : "warning"}>{listing.status}</Badge>
           <span>{moveInLabel}</span>

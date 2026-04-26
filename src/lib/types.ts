@@ -298,6 +298,7 @@ export type NotificationRecord = {
   type: string;
   title: string;
   body: string;
+  actionUrl?: string;
   isRead: boolean;
   createdAt: string;
 };
@@ -343,6 +344,7 @@ export type ListingCardVM = {
   deposit: number;
   moveInDate: string;
   status: ListingRecord["status"];
+  coverImageUrl?: string | null;
 };
 
 export type ListingDetailVM = {

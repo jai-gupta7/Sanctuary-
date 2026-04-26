@@ -1,4 +1,16 @@
-import { forwardRef, type ButtonHTMLAttributes, type HTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useId,
+  useRef,
+  type ButtonHTMLAttributes,
+  type HTMLAttributes,
+  type InputHTMLAttributes,
+  type KeyboardEvent,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes
+} from "react";
 import { Link } from "react-router-dom";
 
 type Tone = "primary" | "secondary" | "tertiary" | "danger";
@@ -33,9 +45,9 @@ export function ButtonLink({
   );
 }
 
-export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("app-card", className)} {...props} />;
-}
+export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(function Card({ className, ...props }, ref) {
+  return <div ref={ref} className={cn("app-card", className)} {...props} />;
+});
 
 export function Badge({
   tone = "neutral",
@@ -180,6 +192,101 @@ export function Tabs({
   );
 }
 
+function getFocusableElements(container: HTMLElement | null) {
+  if (!container) return [];
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter((element) => !element.hasAttribute("disabled") && element.getAttribute("aria-hidden") !== "true");
+}
+
+function DialogSurface({
+  open,
+  title,
+  children,
+  onClose,
+  overlayClassName,
+  cardClassName
+}: {
+  open: boolean;
+  title: string;
+  children: ReactNode;
+  onClose: () => void;
+  overlayClassName?: string;
+  cardClassName: string;
+}) {
+  const titleId = useId();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const previousActiveElementRef = useRef<Element | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    previousActiveElementRef.current = document.activeElement;
+    const focusable = getFocusableElements(cardRef.current);
+    const nextFocusTarget = focusable[0] ?? cardRef.current;
+    nextFocusTarget?.focus();
+
+    return () => {
+      const previousActiveElement = previousActiveElementRef.current;
+      if (previousActiveElement instanceof HTMLElement) {
+        previousActiveElement.focus();
+      }
+    };
+  }, [open]);
+
+  if (!open) return null;
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+
+    if (event.key !== "Tab") return;
+    const focusable = getFocusableElements(cardRef.current);
+    if (!focusable.length) {
+      event.preventDefault();
+      cardRef.current?.focus();
+      return;
+    }
+
+    const firstElement = focusable[0];
+    const lastElement = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === firstElement) {
+      event.preventDefault();
+      lastElement.focus();
+    } else if (!event.shiftKey && document.activeElement === lastElement) {
+      event.preventDefault();
+      firstElement.focus();
+    }
+  };
+
+  return (
+    <div
+      className={cn("overlay", overlayClassName)}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      onKeyDown={handleKeyDown}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <Card ref={cardRef} className={cardClassName} tabIndex={-1}>
+        <div className="modal-top">
+          <h3 id={titleId}>{title}</h3>
+          <button className="icon-button" onClick={onClose} type="button">
+            Close
+          </button>
+        </div>
+        {children}
+      </Card>
+    </div>
+  );
+}
+
 export function Modal({
   open,
   title,
@@ -191,21 +298,7 @@ export function Modal({
   children: ReactNode;
   onClose: () => void;
 }) {
-  if (!open) return null;
-
-  return (
-    <div className="overlay" role="dialog" aria-modal="true">
-      <Card className="modal-card">
-        <div className="modal-top">
-          <h3>{title}</h3>
-          <button className="icon-button" onClick={onClose} type="button">
-            Close
-          </button>
-        </div>
-        {children}
-      </Card>
-    </div>
-  );
+  return <DialogSurface cardClassName="modal-card" onClose={onClose} open={open} title={title}>{children}</DialogSurface>;
 }
 
 export function Drawer({
@@ -219,19 +312,9 @@ export function Drawer({
   children: ReactNode;
   onClose: () => void;
 }) {
-  if (!open) return null;
-
   return (
-    <div className="overlay drawer-overlay" role="dialog" aria-modal="true">
-      <Card className="drawer-card">
-        <div className="modal-top">
-          <h3>{title}</h3>
-          <button className="icon-button" onClick={onClose} type="button">
-            Close
-          </button>
-        </div>
-        {children}
-      </Card>
-    </div>
+    <DialogSurface cardClassName="drawer-card" onClose={onClose} open={open} overlayClassName="drawer-overlay" title={title}>
+      {children}
+    </DialogSurface>
   );
 }

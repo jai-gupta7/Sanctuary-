@@ -893,13 +893,26 @@ export function NotificationsPage() {
                 <p>{notification.body}</p>
                 <small>{formatDate(notification.createdAt)}</small>
               </div>
-              {!notification.isRead ? (
-                <Button tone="secondary" onClick={() => markReadMutation.mutate(notification._id)} type="button">
-                  Mark read
-                </Button>
-              ) : (
-                <span>Read</span>
-              )}
+              <div className="mini-actions">
+                {notification.actionUrl ? (
+                  <Link
+                    className="button button-primary"
+                    to={notification.actionUrl}
+                    onClick={() => {
+                      if (!notification.isRead) markReadMutation.mutate(notification._id);
+                    }}
+                  >
+                    Open
+                  </Link>
+                ) : null}
+                {!notification.isRead ? (
+                  <Button tone="secondary" onClick={() => markReadMutation.mutate(notification._id)} type="button">
+                    Mark read
+                  </Button>
+                ) : (
+                  <span>Read</span>
+                )}
+              </div>
             </Card>
           ))}
         </div>
@@ -919,6 +932,8 @@ export function AdminUsersPage() {
     action: "flag" | "deactivate" | "activate";
   } | null>(null);
   const [userModerationReasonDraft, setUserModerationReasonDraft] = useState("");
+  const [userSearch, setUserSearch] = useState("");
+  const [userFilter, setUserFilter] = useState<"all" | "flagged" | "inactive" | "verified" | "rejected">("all");
   const usersQuery = useQuery({
     queryKey: ["admin-users"],
     queryFn: () => adminApi.users()
@@ -966,6 +981,29 @@ export function AdminUsersPage() {
   });
 
   const isUserModerationPending = flagMutation.isPending || unflagMutation.isPending || deactivateMutation.isPending || activateMutation.isPending;
+  const filteredUsers =
+    usersQuery.data?.filter((user) => {
+      const searchableText = [
+        user.phone,
+        user.email,
+        user.role,
+        user.profileContext?.fullName,
+        user.profileContext?.occupation,
+        user.verificationStatus,
+        user.flagReason
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      const matchesSearch = !userSearch.trim() || searchableText.includes(userSearch.trim().toLowerCase());
+      const matchesFilter =
+        userFilter === "all" ||
+        (userFilter === "flagged" && user.isFlagged) ||
+        (userFilter === "inactive" && user.isActive === false) ||
+        (userFilter === "verified" && user.verificationStatus === "verified") ||
+        (userFilter === "rejected" && user.verificationStatus === "rejected");
+      return matchesSearch && matchesFilter;
+    }) ?? [];
 
   return (
     <div className="page-shell">
@@ -1054,8 +1092,24 @@ export function AdminUsersPage() {
       </Modal>
       <PageHeader eyebrow="Admin" title="Users" description="Trust operations for user review, flagging, and deactivation." />
       <AdminWorkspaceNav />
+      <Card className="admin-filter-panel">
+        <Field label="Search users" hint="Search by phone, email, name, occupation, verification state, or moderation note.">
+          <Input placeholder="+91, email, name, flagged reason..." value={userSearch} onChange={(event) => setUserSearch(event.target.value)} />
+        </Field>
+        <Tabs
+          value={userFilter}
+          onChange={(value: string) => setUserFilter(value as "all" | "flagged" | "inactive" | "verified" | "rejected")}
+          items={[
+            { label: `All (${usersQuery.data?.length ?? 0})`, value: "all" },
+            { label: `Flagged (${usersQuery.data?.filter((user) => user.isFlagged).length ?? 0})`, value: "flagged" },
+            { label: `Inactive (${usersQuery.data?.filter((user) => user.isActive === false).length ?? 0})`, value: "inactive" },
+            { label: `Verified (${usersQuery.data?.filter((user) => user.verificationStatus === "verified").length ?? 0})`, value: "verified" },
+            { label: `Rejected KYC (${usersQuery.data?.filter((user) => user.verificationStatus === "rejected").length ?? 0})`, value: "rejected" }
+          ]}
+        />
+      </Card>
       <div className="stack-list">
-        {usersQuery.data?.map((user) => (
+        {filteredUsers.map((user) => (
           <Card key={user._id} className="mini-listing">
             <div>
               <div className="section-heading-row">
@@ -1194,6 +1248,9 @@ export function AdminUsersPage() {
             </div>
           </Card>
         ))}
+        {!filteredUsers.length ? (
+          <EmptyState title="No users match this view" copy="Try clearing the search or switching to another moderation filter." />
+        ) : null}
       </div>
     </div>
   );

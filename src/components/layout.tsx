@@ -75,7 +75,9 @@ export function AppLayout() {
         <NavigationLink to="/dashboard">Home</NavigationLink>
         <NavigationLink to="/explore">Explore</NavigationLink>
         <NavigationLink to="/my-listings">Listings</NavigationLink>
+        <NavigationLink to="/applications">Apps</NavigationLink>
         <NavigationLink to="/conversations">Chat</NavigationLink>
+        <NavigationLink to="/notifications">Alerts</NavigationLink>
         <NavigationLink to="/profile">Profile</NavigationLink>
       </nav>
     </div>
