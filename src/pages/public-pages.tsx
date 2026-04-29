@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { Homepage } from "../components/homepage";
+import { SanctuaryPage } from "../sanctuary/SanctuaryPage";
 import { MapPreview } from "../components/map-preview";
 import { Badge, Button, ButtonLink, Card, EmptyState, Field, InlineNotice, Input, LoadingBlock, Modal, PageHeader, Textarea } from "../components/ui";
 import { applicationsApi, conversationsApi, listingsApi } from "../lib/api";
@@ -142,7 +142,7 @@ function ListingSummaryCard({ listing }: { listing: ListingCardVM }) {
 }
 
 export function HomePage() {
-  return <Homepage />;
+  return <SanctuaryPage />;
 }
 
 export function ExplorePage() {

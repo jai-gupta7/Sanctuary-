@@ -1,3 +1,5 @@
+import "./sanctuary.css";
+
 const phoneHero = "https://www.figma.com/api/mcp/asset/221fe505-3890-43af-b182-d168d4be2643";
 const minimalScreen = "https://www.figma.com/api/mcp/asset/1da02a9b-5eca-483a-929a-81e0589991fd";
 const expressionScreen = "https://www.figma.com/api/mcp/asset/7b77a2ab-dc85-4d31-912f-6e342b6baa70";
@@ -95,7 +97,7 @@ function CheckList({ items, tone = "blue" }: { items: string[]; tone?: "blue" | 
   );
 }
 
-export function Homepage() {
+export function SanctuaryPage() {
   return (
     <div className="sanctuary-page" id="top">
       <a className="sanctuary-skip" href="#content">Skip to Content</a>
