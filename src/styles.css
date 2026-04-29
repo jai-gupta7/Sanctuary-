@@ -4900,6 +4900,7 @@ p {
 
 .sanctuary-direction-grid article {
   display: grid;
+  position: relative;
   justify-items: center;
   gap: 12px;
   text-align: center;
@@ -4917,6 +4918,7 @@ p {
   margin-top: 12px;
   place-items: center;
   overflow: hidden;
+  border: 1px solid transparent;
   border-radius: 12px;
   background: var(--sanctuary-soft);
   box-shadow: 0 20px 40px rgba(64, 77, 190, 0.04);
@@ -5873,6 +5875,13 @@ p {
     justify-items: center;
   }
 
+  .sanctuary-direction-grid article:first-child::before {
+    content: "";
+    display: block;
+    min-height: 40px;
+    margin-bottom: 20px;
+  }
+
   .sanctuary-direction-grid h3 {
     font-size: 24px;
     line-height: 31.2px;
@@ -5902,7 +5911,7 @@ p {
   }
 
   .sanctuary-direction-grid article:first-child .sanctuary-screen-frame {
-    border: 0;
+    border-color: transparent;
   }
 
   .sanctuary-direction-selected .sanctuary-screen-frame {
