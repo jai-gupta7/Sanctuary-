@@ -5896,7 +5896,7 @@ p {
 
   .sanctuary-screen-frame {
     width: 560px;
-    min-height: 984px;
+    min-height: auto;
     margin-top: 32px;
     padding: 24px;
     border-radius: 12px;
