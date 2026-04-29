@@ -4970,6 +4970,7 @@ p {
 
 .sanctuary-solution-grid article {
   display: grid;
+  align-content: start;
   gap: 16px;
 }
 
@@ -5995,7 +5996,7 @@ p {
   }
 
   .sanctuary-solution-intro {
-    min-height: 88px;
+    height: 109px;
     align-content: start;
     gap: 6px;
   }
@@ -6013,7 +6014,9 @@ p {
 
   .sanctuary-solution-image {
     width: 252px;
-    min-height: 617px;
+    height: 544px;
+    min-height: 0;
+    align-self: start;
     padding: 16px;
     border-radius: 8px;
   }
@@ -6021,8 +6024,9 @@ p {
   .sanctuary-solution-image img {
     width: 220px;
     max-width: none;
-    height: auto;
+    height: 512px;
     max-height: none;
+    object-fit: fill;
   }
 
   .sanctuary-solution-detail {
