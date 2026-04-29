@@ -4928,7 +4928,7 @@ p {
   object-fit: cover;
 }
 
-.sanctuary-insight {
+.sanctuary-page .sanctuary-insight {
   display: flex;
   max-width: 620px;
   min-height: 82px;
@@ -4937,17 +4937,23 @@ p {
   gap: 4px;
   margin: 48px auto 0;
   padding: 20px 32px;
+  border: 1px solid rgba(64, 77, 190, 0.22);
   border-radius: 8px;
-  color: var(--sanctuary-blue);
+  color: #404dbe;
   background: var(--sanctuary-icon);
   text-align: center;
 }
 
-.sanctuary-insight .material-symbols-outlined {
+.sanctuary-page .sanctuary-insight strong,
+.sanctuary-page .sanctuary-insight > span:not(.material-symbols-outlined) {
+  color: #404dbe;
+}
+
+.sanctuary-page .sanctuary-insight .material-symbols-outlined {
   position: absolute;
   align-self: flex-start;
   margin-top: -12px;
-  color: var(--sanctuary-blue);
+  color: #404dbe;
   font-size: 18px;
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 20;
 }
@@ -5910,7 +5916,7 @@ p {
     line-height: 24px;
   }
 
-  .sanctuary-insight {
+  .sanctuary-page .sanctuary-insight {
     position: relative;
     left: 50%;
     width: min(950px, 100%);
@@ -5920,8 +5926,8 @@ p {
     transform: translateX(-50%);
     border: 1px solid #404dbe;
     border-radius: 8px;
-    color: #3441c6;
-    background: #6572ef;
+    color: #404dbe;
+    background: var(--sanctuary-icon);
     font-size: 28px;
     font-weight: 800;
     line-height: 34px;
@@ -5930,15 +5936,17 @@ p {
     height: 146px;
   }
 
-  .sanctuary-insight > span:not(.material-symbols-outlined) {
+  .sanctuary-page .sanctuary-insight > span:not(.material-symbols-outlined) {
     max-width: 780px;
+    color: #404dbe;
+    text-align: center;
   }
 
-  .sanctuary-insight .material-symbols-outlined {
+  .sanctuary-page .sanctuary-insight .material-symbols-outlined {
     position: static;
     align-self: center;
     margin-top: 0;
-    color: #3441c6;
+    color: #404dbe;
     font-size: 24px;
   }
 
