@@ -4941,12 +4941,14 @@ p {
   border-radius: 8px;
   color: #404dbe;
   background: var(--sanctuary-icon);
+  font-weight: 600;
   text-align: center;
 }
 
 .sanctuary-page .sanctuary-insight strong,
 .sanctuary-page .sanctuary-insight > span:not(.material-symbols-outlined) {
   color: #404dbe;
+  font-weight: 600;
 }
 
 .sanctuary-page .sanctuary-insight .material-symbols-outlined {
@@ -5929,7 +5931,7 @@ p {
     color: #404dbe;
     background: var(--sanctuary-icon);
     font-size: 28px;
-    font-weight: 800;
+    font-weight: 600;
     line-height: 34px;
     flex-direction: column;
     gap: 8px;
